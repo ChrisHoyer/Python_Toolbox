@@ -1,10 +1,9 @@
 #############################################################################
 #   Verschiedene Skripte um ADS Simulationen auszuwerten
 #
-#   - Set_TwoAxisTicks: Generiert zwei Axen Ticks (links + rechts)
-#   - ImportData: Importiert eine ASCII Datei von ADS
-#   - Calc_HarmonicBalance_Single: Berechnet IP3, PSat 1dB Comp auf Basis von einer HB Sim
-#   - Calc_HarmonicBalance: Berechnet Calc_HarmonicBalance_Single für mehrere Simulationen
+#   - ImportData: Imports an ASCII file from ads
+#   - Calc_HarmonicBalance_Single: Calculates IP3, Psat, 1dB Comp based on HB Sim
+#   - Calc_HarmonicBalance: Uses Calc_HarmonicBalance_Single for multiple frequencies
 #   - Calc_StabGain: Berechnet MSG/MAG und K-Fct auf Basis von S2P
 #   - Calculate_StabCircle: Berechnet Stabilitätskreise für eine Freq
 #   - MixedModeSparam: Extrahiert Mixed Mode Paramters aus Simulation
@@ -18,106 +17,6 @@ import csv
 import numpy as np
 import skrf as rf
 import matplotlib.pyplot as plt
-
-#############################################################################
-###         Plot two Axis
-#############################################################################
-def Set_TwoAxisTicks(ax1, ax2, nticks = 0, ax1_major=[0,0], ax2_major=[0,0], ax2_middle=0, ax2_base=5):
-#############################################################################    
-    """
-   Calculate Ticks for ax1 and ax2 on the same grid
-
-    paramters              description
-    =====================  =============================================:
-    ax1,ax2                 axis object
-    nticks                  used ticks
-    ax1_major               size of ax1
-    ax2_major               size of ax2
-    
-    return type
-       two vectors for axis ticks
-    
-    Example:
-        
-        import ADS_Toolbox as ads
-        
-        # insert data here
-        #
-        #
-        
-        
-        # plot settings
-        fig, ax1 = plt.subplots(figsize=(11, 4))
-        ax2 = ax1.twinx()
-        
-        # plot data
-        ax1.semilogx(G_CS_8x60['Freq'], G_CS_8x60['Gain_dB'])
-        ax2.semilogx(G_CS_8x60['Freq'], G_CS_8x60['K_Fact'])
-
-        # Calculate Ticks etc
-        [ax1_major, ax2_major] = ads.Set_TwoAxisTicks(ax1,ax2, nticks=7, ax1_major=[-10, 50], ax2_major=[-2,4])
-
-        # Set Axis 1
-        ax1.set_yticks(ax1_major)
-        ax1.set_ybound(ax1_major[0],ax1_major[-1]) 
- 
-        # Set Axis 2
-        ax2.set_yticks(ax2_major)
-        ax2.axes.set_ylim(ax2_major[0], ax2_major[-1]) 
-    """
-#############################################################################        
-    # get Ticknumber
-    if not nticks:
-        nticks = len(ax1.get_yticks())
-
-    # ax1 Ticks defined?
-    if not (np.abs(ax1_major[0])+np.abs(ax1_major[1])):
-        ax1_major_start = np.floor(ax1.get_yticks()[0])
-        ax1_major_end = np.ceil(ax1.get_yticks()[-1])
-    else:
-        ax1_major_start = ax1_major[0]
-        ax1_major_end = ax1_major[1]
-    
-    # Generate Ticks Axis 1 
-    ax1_major = np.linspace(ax1_major_start,ax1_major_end, nticks)
-
-    # ax2 Ticks defined?
-    if not (np.abs(ax2_major[0])+np.abs(ax2_major[1])):
-        ax2_major_start = np.ceil(ax2.get_yticks()[0])
-        ax2_major_end = np.round(ax2.get_yticks()[-1])
-    else:
-        ax2_major_start = ax2_major[0]
-        ax2_major_end = ax2_major[1]
-        
-    # linear scale ticks or with middle point?
-    if ax2_middle:
-
-        # even ticks:
-        if not (nticks % 2):
-                       
-            # Spacing between Ticks
-            ax2_spacing = (ax2_major_end-ax2_major_start)/nticks
-            ax2_spacing = int(ax2_base * round(float(ax2_spacing)/ax2_base))
-            
-            # lower Limit:
-            ax2_start = ax2_middle-(ax2_spacing*nticks/2)
-            ax2_stop = ax2_middle+(ax2_spacing*nticks/2)
-             
-            # Generate Vector
-            ax2_major = np.arange(ax2_start,ax2_stop,ax2_spacing)
-            
-        else:
-            ax2_major_high = np.linspace(ax2_middle, ax2_major_end, np.ceil(nticks/2))
-            ax2_major_low = np.linspace(ax2_major_start,ax2_middle, np.ceil(nticks/2))
-            ax2_major = np.concatenate([ax2_major_low[0:-1], ax2_major_high]) 
-    else:   
-        # generate Ticks Axis 2
-        ax2_major = np.linspace(ax2_major_start,ax2_major_end, nticks)
-
-    #return type
-    returnvalue = np.array([ax1_major, ax2_major])
-    
-    return returnvalue
 
 
 #############################################################################
@@ -393,7 +292,6 @@ def Calc_HarmonicBalance_Single(Data, Freq, lin_point_shift=0, lin_point_toleran
     # return
     return HarmonicBalance
 
-
 #############################################################################
 ###         Extract Harmonic Balance and Plot in one Diagram
 #############################################################################
@@ -657,7 +555,6 @@ def Calc_HarmonicBalance(Data, debugplot=False, debugvalue=False, lin_point_shif
      
     # return
     return HarmonicBalance
-
 
 #############################################################################
 ###         Extract MSG/MAG and StabFac

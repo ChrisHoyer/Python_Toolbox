@@ -1,20 +1,21 @@
 #############################################################################
-#   1.  CSV2Dict - script for importing CSV Files
-#   2.  CSV2Area - script for calculating polygon area based on coordinates
-#   3.  FitFct_Exp - script that fits data against an Exp Function
-#   4.  FindPoint_FitFct - fits higher order Polynom against Dataset to find point
-#   5.  Linearization_Point - linearization around one point
-#   6.  Linear_Plot - linear plot function with automated labeling
-#   7.  SemiLogX_Plot - semilog x plot function with automated labeling
-#	8.  Vline_Plot - generates vertical line in plot with label
-#	9.  Hline_Plot - generates horizontal line in plot with label
-#   10. Align_YAxis - Align two YGrids in one plot
-#	11. FindPoint_NextValue - find nearest point
-#   12. Digitalize_Data - Generates binary stream from data and clock
-#	13. CMPLX2Format - converts complex numbers in different formats
-#   14. Average - Average a Dataset
-#   15. FFTData - Generates a FFT out the Data
-#   16. String2List - Generates a List out of a csv with one line
+#
+# - CSV2Dict: script for importing CSV Files
+# - CSV2Area: script for calculating polygon area based on coordinates
+# - FitFct_Exp: script that fits data against an Exp Function
+# - FindPoint_FitFct: fits higher order Polynom against Dataset to find point
+# - Linearization_Point: linearization around one point
+# - Linear_Plot: linear plot function with automated labeling
+# - SemiLogX_Plot: semilog x plot function with automated labeling
+# - Vline_Plot: generates vertical line in plot with label
+# - Hline_Plot: generates horizontal line in plot with label
+# - Align_YAxis: Align two YGrids in one plot
+# - FindPoint_NextValue: find nearest point
+# - Digitalize_Data: Generates binary stream from data and clock
+# - CMPLX2Format: converts complex numbers in different formats
+# - Average: Average a Dataset
+# - FFTData: Generates a FFT out the Data
+# - String2List: Generates a List out of a csv with one line
 #
 #   Autor: C. Hoyer (choyer.ch@gmail.com)
 #   Stand: 09-12-2019
