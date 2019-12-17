@@ -1401,55 +1401,46 @@ def Average(XData, YData, Points=200):
     return [XData, YData]
 
 #############################################################################
-##          FFT of Data Signal
+##          Frequency Domain Filtering
 #############################################################################
-def FFTData(XData, YData, ZeroPad=1000):
-############################################################################# 
-    """
-    FFT of input data
+def FrequencyFiltering(Data, pass_start, pass_end, filtertype="Bandstop", plot=False):
     
-    paramters              description
-    =====================  =============================================:
-    YData                   input data, which should be averaged
-    XData                   input data, average data will correspondent to middle
-    ZeroPad                 (optional) zeropadding with numbers
+    # Number of Samples (Real Part)
+    N_FFT =  np.int(np.size(Data)/2)
     
-    return type
-       struct with List YData and XData
-       
-    Example:
+    # FFT of the Dataset
+    Data_FFT= np.fft.fft(Data)[0:N_FFT]
+    
+
+    # Generate Bandpassfilter
+    if filtertype == "Bandpass":
+            Filter_FFT = np.zeros(N_FFT)
+            Filter_FFT[pass_start:pass_end] = np.ones(pass_end-pass_start)
+ 
+    # Generate Bandstopfilter
+    if filtertype == "Bandstop":
+            Filter_FFT = np.ones(N_FFT)
+            Filter_FFT[pass_start:pass_end] = np.zeros(pass_end-pass_start)
+    
+    # Plot Output
+    if plot==True:
+        fig, ax1 = plt.subplots(figsize=(10,5))
+        ax1.plot(np.abs(Data_FFT))
+        ax1.set_xlim([0, 100e3])
+        ax2 = ax1.twinx()
+        ax2.plot(Filter_FFT, 'k:')
+                 
+        plt.show()
         
-        import PCB_Toolbox as pcb
-        
-        # generate Dataset
-        dataY = ...               
-        dataX = ...       
-          
-        # Generate multiple formats 
-        dataAVG = pcb.Average(dataY, dataX)
-           
-    """   
-############################################################################# 
-    # ZeroPadding
-    YData = np.pad(YData, ZeroPad, mode='constant')
+    # Use Filter on Dataset 
+    Data_Filtered = Data_FFT * Filter_FFT
     
-    # estimate Sample Time (mean)
-    Tsample = np.mean(XData[1:-1] - XData[0:-2])
-
-    # Number of Samples
-    NFFT = np.size(YData)
-
-    # generate FFT and power spectrum 
-    yFFT= np.fft.fft(YData)
+    # Generate Real Spektrum
+    Data_Filtered = np.append(Data_Filtered, np.flip(Data_Filtered))
     
-    # Rescale Amplitude and only positive frequency axis
-    yFFT = 2.0/NFFT * np.abs(yFFT[:(NFFT//2)])
-
-    # Generate Frequency Axis
-    xFFT = np.linspace(0,1/(2*Tsample),NFFT/2)
+    # Return IFFT
+    return np.fft.ifft(Data_Filtered)
     
-    return [xFFT, yFFT]
-
 #############################################################################
 ##          FFT of Data Signal
 #############################################################################
@@ -1496,7 +1487,8 @@ def String2List(file, delimiter=','):
 
 
     return Output
-
+  
+    
 
 
 
