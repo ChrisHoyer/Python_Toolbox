@@ -1404,12 +1404,37 @@ def Average(XData, YData, Points=200):
 ##          Frequency Domain Filtering
 #############################################################################
 def FrequencyFiltering(Data, pass_start, pass_end, filtertype="Bandstop", plot=False):
+############################################################################# 
+    """
+    Average of YData, both data arrays will be splitted into eqal chunks
+
+    paramters              description
+    =====================  =============================================:
+    file                    input data, which should be averaged
     
+    return type
+       list with data
+       
+    Example:
+        
+        import PCB_Toolbox as pcb
+        
+        # generate Dataset
+        file = ...  
+             
+        # Generate multiple formats 
+        list = pcb.String2List(file)
+           
+    """   
+#############################################################################    
     # Number of Samples (Real Part)
     N_FFT =  np.int(np.size(Data)/2)
     
     # FFT of the Dataset
     Data_FFT= np.fft.fft(Data)[0:N_FFT]
+    
+    if pass_end == -1:
+        pass_end = N_FFT
     
 
     # Generate Bandpassfilter
