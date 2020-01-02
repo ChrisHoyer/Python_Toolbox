@@ -18,7 +18,7 @@
 # - String2List: Generates a List out of a csv with one line
 #
 #   Autor: C. Hoyer (choyer.ch@gmail.com)
-#   Stand: 09-12-2019
+#   Stand: 02-01-2020
 #############################################################################
 
 from scipy.optimize import curve_fit
@@ -1513,8 +1513,5 @@ def String2List(file, delimiter=','):
 
     return Output
   
-    
-
-
 
     
