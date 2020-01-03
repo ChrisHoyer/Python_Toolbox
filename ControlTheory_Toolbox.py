@@ -21,7 +21,7 @@ from sympy.parsing.sympy_parser import parse_expr
 #           Extract Magnitude and Phase from Laplace Transfer Function
 #############################################################################
 def Extract_Sympy_1Var(symbolic, eval_range, variable='s', evaluation="lambdify",
-                       modules=['numpy', 'sympy']):
+                       modules=['numpy', 'sympy'], Heaviside_Value=0):
 ############################################################################# 
     """
     Substitute Symbolic Function
@@ -32,16 +32,51 @@ def Extract_Sympy_1Var(symbolic, eval_range, variable='s', evaluation="lambdify"
     eval_range             subsitute content or evaluation range
     variable               (optional) variable parameter
     evaluation             (optional) define the used evalutaion function (lambdify | subs)
+    Heaviside_Value        (optional) Value for Heaviside Function at H(0)
     
     return type
        array with values
        
     """   
- #############################################################################    
+ #############################################################################   
+    def SetHeaviside(symbolic, Heaviside_Value=0):
+        
+        # Element is a Heaviside Element?
+        if str(type(symbolic)) == "Heaviside":
+            # Extract old Argument and generate new one
+            symbolic_args = (symbolic.args[0], Heaviside_Value)
+            symbolic = symbolic.func(*symbolic_args)
+            # return back into parent
+            return symbolic
+            
+        # Save all return args and write back into parent
+        new_args = ()
+    
+        # Iterate the tree
+        for arg in symbolic.args:
+                 
+            # Argument has another arguments?
+            if arg.args:
+                arg = SetHeaviside(arg, Heaviside_Value=Heaviside_Value)
+            
+            # write back into new arguments
+            new_args = new_args + (arg,)
+
+        # Write new arguments back into parent
+        symbolic = symbolic.func(*new_args)
+                                    
+        return symbolic
+
+    
+ #############################################################################  
     # Generate Variable
     if isinstance(variable, str):
         variable = sympy.Symbol(variable)
-    
+        
+        
+    # Set Heaviside to default value at jump
+    symbolic = SetHeaviside(symbolic)
+                    
     # use Lambdify for fast results
     if evaluation == "lambdify":
         
@@ -56,7 +91,7 @@ def Extract_Sympy_1Var(symbolic, eval_range, variable='s', evaluation="lambdify"
             # iterate each item
             output = []
             for eval_item in eval_range:
-                evaluated = function(eval_item)
+                evaluated = function(eval_item)  
                 output.append(float(evaluated))
                 
         # Extract Function
@@ -70,7 +105,9 @@ def Extract_Sympy_1Var(symbolic, eval_range, variable='s', evaluation="lambdify"
         # Evaluate:
         for eval_item in eval_range:
             evaluated = symbolic.evalf(subs={variable: eval_item})
-            Solution.append(np.complex(evaluated))
+            evaluated = np.complex(evaluated)
+       
+            Solution.append(evaluated)
        
         # return Values
         return Solution
@@ -199,16 +236,16 @@ def BodePlot_FBCTRL(feedforward, feedback, freq, variable='s', evaluation="lambd
         basic.Hline_Plot(ax2, current_phase,  Name_PhaseMargin + str(phase_margin) + '$^\circ$', color='k', linestyle='--')
 
     plt.show()
-
-        
+      
 #############################################################################
 #           Generate StepResponse out of symbolic transfer function
 #############################################################################
 def StepResponse(system, time, delay=1, variable_laplace='s', variable_time='t',
-                 substitute=True, plot=True, normalize_plot=True, evaluation="subs",
-                    Name_StepFct = r'Step Function, normalized',
-                    Name_System = r'Step Response, normalized',
-                    Xlabel_time = ['', 's'], Ylabel_Amplitude = ["", 't']  
+                 substitute=True, plot=True, normalize_plot=True,
+                 evaluation="subs", Heaviside_Value=0,
+                 Name_StepFct = r'Step Function, normalized',
+                 Name_System = r'Step Response, normalized',
+                 Xlabel_time = ['', 's'], Ylabel_Amplitude = ["", 'V']  
                  ):
     
 ############################################################################# 
@@ -227,6 +264,7 @@ def StepResponse(system, time, delay=1, variable_laplace='s', variable_time='t',
     plot                    (optional) plot step response output
     normalize_plot          (optional) normalize end value to maximum
     evaluation              (optional) define the used evalutaion function (lambdify|subs)  
+    Heaviside_Value         (optional) Value for Heaviside Function at H(0)
     Name_StepFct            (optional) Name of StepFunction Label
     Name_System             (optional) Name of System response label    
     Xlabel_time             (optional) Label and Unit of Time X-Axis
@@ -267,9 +305,15 @@ def StepResponse(system, time, delay=1, variable_laplace='s', variable_time='t',
     if plot:   
 
         # evaluation of that data
-        heaviside = Extract_Sympy_1Var(heaviside_time, time, variable=variable_time, evaluation=evaluation)   
-        stepresponse = Extract_Sympy_1Var(StepReponse_time, time, variable=variable_time, evaluation=evaluation) 
+        heaviside = Extract_Sympy_1Var(heaviside_time, time, variable=variable_time,
+                                       evaluation=evaluation,  Heaviside_Value=Heaviside_Value)   
+        stepresponse = Extract_Sympy_1Var(StepReponse_time, time, variable=variable_time,
+                                          evaluation=evaluation, Heaviside_Value=Heaviside_Value) 
         
+        # As Array
+        heaviside = np.asarray(heaviside)
+        stepresponse = np.asarray(stepresponse)
+         
         # normalize
         if normalize_plot:
             heaviside = heaviside/heaviside[-1]
@@ -278,8 +322,8 @@ def StepResponse(system, time, delay=1, variable_laplace='s', variable_time='t',
     # ===================================        
         # Plot Settings
     
-        plot_amp = [[time, heaviside, Name_StepFct, 'linewidth=2.5'],
-                    [time, stepresponse, Name_System, 'linewidth=2.5']]
+        plot_amp = [[time, heaviside, Name_StepFct, 'linewidth=0.5, marker=x, markersize=10'],
+                   [time, stepresponse, Name_System, 'linewidth=2.5']]
 
     # =================================== 
         # Generate Plot
