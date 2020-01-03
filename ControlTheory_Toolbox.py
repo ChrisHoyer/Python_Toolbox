@@ -7,10 +7,10 @@
 # - Substitute_Datatype: Substitute constant values with symboles
 #
 #   Autor: C. Hoyer (choyer.ch@gmail.com)
-#   Stand: 02-01-2020
+#   Stand: 03-01-2020
 #############################################################################
 
-import Basic_Toolbox as basic
+import basic_toolbox as basic
 import matplotlib.pyplot as plt
 import numpy as np
 import sympy
@@ -116,7 +116,8 @@ def Extract_Sympy_1Var(symbolic, eval_range, variable='s', evaluation="lambdify"
 #           Generate BodePlot out of symbolic transfer function
 #############################################################################
 def BodePlot_FBCTRL(feedforward, feedback, freq, variable='s', evaluation="lambdify",
-                    Add_LoopBW = True, Add_PhaseMargin = True,
+                    Add_LoopBW = True, Add_PhaseMargin = True, Add_MaxPhaseMargin = True,
+                    PlotBlackWhite = False,
                     Name_LoopBW= r'$f_\mathrm{loop}$ = ',Scale_LoopBW = 1e3,  Unit_LoopBW= 'kHz',
                     Name_PhaseMargin= r'$\varphi_\Delta$ = ', Max_PhaseMargin = -180,
                     Name_OL_dB = r'Open Loop Reference Phase $|\mathrm{G}_\mathrm{OL}|$',
@@ -149,6 +150,7 @@ def BodePlot_FBCTRL(feedforward, feedback, freq, variable='s', evaluation="lambd
     Scale_LoopBW            (optional) Scale of Loop Bandwidth
     Unit_LoopBW             (optional) Unit of Loop Bandwidth
     Add_PhaseMargin         (optional) Insert Phase Margin horizontal line
+    Add_MaxPhaseMargin      (optional) Insert Phase Margin horizontal line at Max_PhaseMargin
     Name_PhaseMargin        (optional) Name of Phase Margin
     Max_PhaseMargin         (optional) Line at maximum Phase Margin
     Name_OL_dB              (optional) Name of Open Loop Magnitue (in dB)
@@ -160,7 +162,7 @@ def BodePlot_FBCTRL(feedforward, feedback, freq, variable='s', evaluation="lambd
     Ylabel_PH               (optional) Label and Unit of phase Y-Axis  
     
     return type
-       none
+       plot
        
     """   
  ############################################################################# 
@@ -198,8 +200,8 @@ def BodePlot_FBCTRL(feedforward, feedback, freq, variable='s', evaluation="lambd
     ax1 = plt.subplot(211)
     ax2 = plt.subplot(212)   
     
-    basic.SemiLogX_Plot(ax1, plot_mag, Xlabel_freq, Ylabel_dB)
-    basic.SemiLogX_Plot(ax2, plot_phase, Xlabel_freq, Ylabel_PH)
+    basic.SemiLogX_Plot(ax1, plot_mag, Xlabel_freq, Ylabel_dB, BlackWhite=PlotBlackWhite)
+    basic.SemiLogX_Plot(ax2, plot_phase, Xlabel_freq, Ylabel_PH, BlackWhite=PlotBlackWhite)
     
     # =================================== 
     if Add_LoopBW | Add_PhaseMargin:
@@ -215,11 +217,18 @@ def BodePlot_FBCTRL(feedforward, feedback, freq, variable='s', evaluation="lambd
         loop_bw_str = loop_bw/Scale_LoopBW
         
         # Generate String
-        loop_bw_str = str(np.round(loop_bw, decimals=3))
+        loop_bw_str = str(np.round(loop_bw_str, decimals=3))
         
-        # Add vertical line
-        basic.Vline_Plot(ax1, loop_bw, Name_LoopBW + loop_bw_str + Unit_LoopBW)
-        basic.Vline_Plot(ax2, loop_bw, Name_LoopBW + loop_bw_str + Unit_LoopBW)  
+        if PlotBlackWhite:
+            # Add vertical line
+            basic.Vline_Plot(ax1, loop_bw, Name_LoopBW + loop_bw_str + Unit_LoopBW, color="gray", linestyle=(0, (5, 10)))
+            basic.Vline_Plot(ax2, loop_bw, Name_LoopBW + loop_bw_str + Unit_LoopBW, color="gray", linestyle=(0, (5, 10)))  
+        else:
+             # Add vertical line
+            basic.Vline_Plot(ax1, loop_bw, Name_LoopBW + loop_bw_str + Unit_LoopBW)
+            basic.Vline_Plot(ax2, loop_bw, Name_LoopBW + loop_bw_str + Unit_LoopBW)            
+        
+ 
  
     # =================================== 
     if Add_PhaseMargin:
@@ -230,12 +239,24 @@ def BodePlot_FBCTRL(feedforward, feedback, freq, variable='s', evaluation="lambd
         
         # calculate phase margin
         phase_margin = Max_PhaseMargin-current_phase
+        phase_margin_str = str(np.round(phase_margin, decimals=3))
         
-        # Add horizontal line
-        basic.Hline_Plot(ax2, Max_PhaseMargin, str(Max_PhaseMargin) + '$^\circ$')
-        basic.Hline_Plot(ax2, current_phase,  Name_PhaseMargin + str(phase_margin) + '$^\circ$', color='k', linestyle='--')
+        if PlotBlackWhite:
+            # Add horizontal line
+            if Add_MaxPhaseMargin:
+                basic.Hline_Plot(ax2, Max_PhaseMargin, str(Max_PhaseMargin) + '$^\circ$', color="gray", linestyle=(0, (5, 10)))
+            basic.Hline_Plot(ax2, current_phase,  Name_PhaseMargin + phase_margin_str + '$^\circ$', color='gray', linestyle=(0, (5, 10)))
 
-    plt.show()
+        else:
+            # Add horizontal line
+            if Add_MaxPhaseMargin:
+                basic.Hline_Plot(ax2, Max_PhaseMargin, str(Max_PhaseMargin) + '$^\circ$')
+            basic.Hline_Plot(ax2, current_phase,  Name_PhaseMargin + phase_margin_str + '$^\circ$', color='k', linestyle='--')
+            
+
+   
+    # return plot
+    return plt
       
 #############################################################################
 #           Generate StepResponse out of symbolic transfer function
@@ -323,7 +344,7 @@ def StepResponse(system, time, delay=1, variable_laplace='s', variable_time='t',
         # Plot Settings
     
         plot_amp = [[time, heaviside, Name_StepFct, 'linewidth=0.5, marker=x, markersize=10'],
-                   [time, stepresponse, Name_System, 'linewidth=2.5']]
+                   [time, stepresponse, Name_System, 'linewidth=1']]
 
     # =================================== 
         # Generate Plot
@@ -354,6 +375,9 @@ def Substitute_Datatype(symbolic_expression, datatype="Float", add_sym="real=Tru
     # All found commands
     mapping = {}
     
+    # Generate Output Type
+    expression_new = expression
+    
     # Datatype detected?
     if len(splitted_Expression) > 0:
         
@@ -372,7 +396,7 @@ def Substitute_Datatype(symbolic_expression, datatype="Float", add_sym="real=Tru
             mapping[symbol] = content
                 
             # Replace in string
-            expression_new = expression.replace(content, symbol)
+            expression_new = expression_new.replace(content, symbol)
         
         # import expression as nummeric equation
         parsed = parse_expr(expression_new) 
@@ -392,17 +416,17 @@ def ReSubstitute_Datatype(symbolic_expression, mapping):
         
     # export expression as text
     expression = sympy.srepr(symbolic_expression)
-        
+ 
     if len(mapping) > 0:
         
         # iterate all keys
         for mapping_key in mapping.keys():
             
             # Replace in string
-            expression_new = expression.replace(mapping_key, mapping[mapping_key])
+            expression = expression.replace(mapping_key, mapping[mapping_key])
             
         # import expression as nummeric equation
-        parsed = parse_expr(expression_new) 
+        parsed = parse_expr(expression) 
         
     else:
         # return symbolic_expression nothing found

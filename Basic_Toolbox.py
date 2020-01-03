@@ -688,7 +688,8 @@ def Linearization_Point(XData, YData, XPoint, Tolerance, num=100,
 ###         Generate Plot for Time Domain / Linear
 #############################################################################
 def Linear_Plot(ax, Plot_list, X_label, Y_label, Legend=True, LegendLoc=0,
-                TwinX=None, Ylim=None, XAutolim=True, fontsize=12, **kwargs):
+                TwinX=None, Ylim=None, XAutolim=True, fontsize=12, BlackWhite=False,
+                **kwargs):
 #############################################################################  
     """
     Prepares a X-Y linear plot
@@ -705,6 +706,7 @@ def Linear_Plot(ax, Plot_list, X_label, Y_label, Legend=True, LegendLoc=0,
     Ylim                    (option) set Y-Axis limits
     Xlim                    (option) set automatically X Limit
     fontsize                (option) Fontsize of this Plot 
+    BlackWhite              (option) Use Black and White Preset
     
     return type
        None  (writes directly into axis)
@@ -728,7 +730,9 @@ def Linear_Plot(ax, Plot_list, X_label, Y_label, Legend=True, LegendLoc=0,
    
     """        
 #############################################################################      
-    for plot in Plot_list:
+    for index in range(len(Plot_list)):
+        
+        plot = Plot_list[index]
         
         # check dimension of X-Axis if whole trace
         x_plot = plot[0]
@@ -741,6 +745,11 @@ def Linear_Plot(ax, Plot_list, X_label, Y_label, Legend=True, LegendLoc=0,
         
         # emtpy argument list
         userargs = {}
+        
+        # BlackWhite Default Settings
+        if BlackWhite:
+            linestyles = ['-', '--', '-.', ':']
+            plot[3] = str("color=k, linestyle=" + linestyles[index])
         
         # insert plotting arguments
         if len(plot) >= 4:
@@ -817,7 +826,7 @@ def Linear_Plot(ax, Plot_list, X_label, Y_label, Legend=True, LegendLoc=0,
 #############################################################################
 def SemiLogX_Plot(ax, Plot_list, X_label, Y_label, Legend=True, LegendLoc=0, 
                   TwinX=None, Ylim=None, XAutolim=True, fontsize=12, 
-                  LegendAlpha=1, **kwargs):
+                  LegendAlpha=1, BlackWhite=False, **kwargs):
 #############################################################################  
     """
     Prepares a X Log and Y Linear plot
@@ -835,6 +844,7 @@ def SemiLogX_Plot(ax, Plot_list, X_label, Y_label, Legend=True, LegendLoc=0,
     Xlim                    (option) set automatically X Limit
     fontsize                (option) Fontsize of this Plot 
     LegendAlpha             (option) Transparency of legend box
+    BlackWhite              (option) Use Black and White Preset
     
     return type
        None  (writes directly into axis)
@@ -860,7 +870,10 @@ def SemiLogX_Plot(ax, Plot_list, X_label, Y_label, Legend=True, LegendLoc=0,
 
 #############################################################################      
  
-    for plot in Plot_list:
+    for index in range(len(Plot_list)):
+        
+        # current plot
+        plot = Plot_list[index]
         
         # check dimension of X-Axis
         x_plot = plot[0]
@@ -873,6 +886,11 @@ def SemiLogX_Plot(ax, Plot_list, X_label, Y_label, Legend=True, LegendLoc=0,
         
         # emtpy argument list
         userargs = {}
+        
+        # BlackWhite Default Settings
+        if BlackWhite:
+            linestyles = ['-', '--', '-.', ':']
+            plot[3] = str("color=k, linestyle=" + linestyles[index])
         
         # insert plotting arguments
         if len(plot) >= 4:
