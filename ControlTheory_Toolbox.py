@@ -2,6 +2,9 @@
 #
 # - Extract_Sympy_1Var: Substitutes Sympy and generates numeric solution
 # - BodePlot_FBCTRL: Generate BodePlot out of symbolic feedback transfer function
+# - StepResponse: Generate Step Response with Heaviside Fct from symbolic transfer function
+# - ReSubstitute_Datatype: Resubstitute constant values with symboles
+# - Substitute_Datatype: Substitute constant values with symboles
 #
 #   Autor: C. Hoyer (choyer.ch@gmail.com)
 #   Stand: 02-01-2020
@@ -11,11 +14,14 @@ import Basic_Toolbox as basic
 import matplotlib.pyplot as plt
 import numpy as np
 import sympy
+from sympy.integrals import inverse_laplace_transform
+from sympy.parsing.sympy_parser import parse_expr
 
 #############################################################################
 #           Extract Magnitude and Phase from Laplace Transfer Function
 #############################################################################
-def Extract_Sympy_1Var(symbolic, eval_range, variable='s', evaluation="lambdify"):
+def Extract_Sympy_1Var(symbolic, eval_range, variable='s', evaluation="lambdify",
+                       modules=['numpy', 'sympy']):
 ############################################################################# 
     """
     Substitute Symbolic Function
@@ -33,16 +39,28 @@ def Extract_Sympy_1Var(symbolic, eval_range, variable='s', evaluation="lambdify"
     """   
  #############################################################################    
     # Generate Variable
-    variable = sympy.Symbol(variable)
+    if isinstance(variable, str):
+        variable = sympy.Symbol(variable)
     
     # use Lambdify for fast results
     if evaluation == "lambdify":
         
         # Generate Function
-        function = sympy.lambdify(variable, symbolic, modules="numpy")
+        function = sympy.lambdify(variable, symbolic, modules=modules)
     
+        try:
+            # use array directly
+            output = function(eval_range)
+            
+        except:
+            # iterate each item
+            output = []
+            for eval_item in eval_range:
+                evaluated = function(eval_item)
+                output.append(float(evaluated))
+                
         # Extract Function
-        return function(eval_range)
+        return output
     
     # use subs for precise results
     if evaluation == "subs":
@@ -57,7 +75,6 @@ def Extract_Sympy_1Var(symbolic, eval_range, variable='s', evaluation="lambdify"
         # return Values
         return Solution
             
-
 #############################################################################
 #           Generate BodePlot out of symbolic transfer function
 #############################################################################
@@ -68,7 +85,8 @@ def BodePlot_FBCTRL(feedforward, feedback, freq, variable='s', evaluation="lambd
                     Name_OL_dB = r'Open Loop Reference Phase $|\mathrm{G}_\mathrm{OL}|$',
                     Name_CL_dB = r'Closed Loop Reference Phase $|\mathrm{G}_\mathrm{CL}|$',
                     Name_OL_PH = r'Open Loop Reference Phase $\angle~(\mathrm{G}_\mathrm{OL})$',
-                    Name_CL_PH = r'Closed Loop Reference Phase $\angle~(\mathrm{G}_\mathrm{CL})$'):
+                    Name_CL_PH = r'Closed Loop Reference Phase $\angle~(\mathrm{G}_\mathrm{CL})$',
+                    Xlabel_freq = ['', 'Hz'], Ylabel_dB = ["", 'dB'], Ylabel_PH = ["", '$^\circ$'] ):
  
 ############################################################################# 
     """
@@ -100,12 +118,17 @@ def BodePlot_FBCTRL(feedforward, feedback, freq, variable='s', evaluation="lambd
     Name_CL_dB              (optional) Name of Closed Loop Magnitue (in dB)   
     Name_OL_PH              (optional) Name of Open Loop Phase (in degree)
     Name_CL_PH              (optional) Name of Closed Loop Phase (in degree)     
+    Xlabel_freq             (optional) Label and Unit of Frequency X-Axis
+    Ylabel_dB               (optional) Label and Unit of dB Y-Axis 
+    Ylabel_PH               (optional) Label and Unit of phase Y-Axis  
     
     return type
-       array with values
+       none
        
     """   
  ############################################################################# 
+    # Generate Variable
+    variable = sympy.Symbol(variable)
     
     # Frequency Scale to j*w
     omega = 2j*np.pi * freq
@@ -125,9 +148,6 @@ def BodePlot_FBCTRL(feedforward, feedback, freq, variable='s', evaluation="lambd
    
     # =================================== 
     # Plot Settings
-    Xlabel_freq = ['', 'Hz']
-    Ylabel_dB = ["", 'dB']
-    Ylabel_phase = ["", '$^\circ$']   
     
     plot_mag = [[freq, OL_Extract['dB'], Name_OL_dB, 'linewidth=2.5'],
                 [freq, CL_Extract['dB'], Name_CL_dB, 'linewidth=2.5']]
@@ -142,7 +162,7 @@ def BodePlot_FBCTRL(feedforward, feedback, freq, variable='s', evaluation="lambd
     ax2 = plt.subplot(212)   
     
     basic.SemiLogX_Plot(ax1, plot_mag, Xlabel_freq, Ylabel_dB)
-    basic.SemiLogX_Plot(ax2, plot_phase, Xlabel_freq, Ylabel_phase)
+    basic.SemiLogX_Plot(ax2, plot_phase, Xlabel_freq, Ylabel_PH)
     
     # =================================== 
     if Add_LoopBW | Add_PhaseMargin:
@@ -178,8 +198,171 @@ def BodePlot_FBCTRL(feedforward, feedback, freq, variable='s', evaluation="lambd
         basic.Hline_Plot(ax2, Max_PhaseMargin, str(Max_PhaseMargin) + '$^\circ$')
         basic.Hline_Plot(ax2, current_phase,  Name_PhaseMargin + str(phase_margin) + '$^\circ$', color='k', linestyle='--')
 
+    plt.show()
+
         
-# =================================== 
-
-
+#############################################################################
+#           Generate StepResponse out of symbolic transfer function
+#############################################################################
+def StepResponse(system, time, delay=1, variable_laplace='s', variable_time='t',
+                 substitute=True, plot=True, normalize_plot=True, evaluation="subs",
+                    Name_StepFct = r'Step Function, normalized',
+                    Name_System = r'Step Response, normalized',
+                    Xlabel_time = ['', 's'], Ylabel_Amplitude = ["", 't']  
+                 ):
     
+############################################################################# 
+    """
+    Generate Step Response from System
+    
+
+    paramters              description
+    =====================  =============================================:
+    system                  system symbolic transfer function
+    time                    time array for evaluation
+    delay                   (optional) delay of heaviside function
+    variable_laplace        (optional) variable in laplace domain
+    variable_time           (optional) variable in time domain
+    substitute              (optional) substitute floats during inverse laplace
+    plot                    (optional) plot step response output
+    normalize_plot          (optional) normalize end value to maximum
+    evaluation              (optional) define the used evalutaion function (lambdify|subs)  
+    Name_StepFct            (optional) Name of StepFunction Label
+    Name_System             (optional) Name of System response label    
+    Xlabel_time             (optional) Label and Unit of Time X-Axis
+    Ylabel_Amplitude        (optional) Label and Unit of Amplitude Y-Axis 
+    
+    
+    return type
+       symbolic time domain functions
+       
+    """   
+ ############################################################################# 
+    
+    # ===================================     
+    # Generate symbolic variables (time only positive)
+    variable_laplace = sympy.Symbol(variable_laplace)
+    variable_time = sympy.Symbol(variable_time, positive=True)
+    
+    # Generate Heaviside function with delay
+    heaviside_laplace = 1/variable_laplace * sympy.exp(-delay*variable_laplace)
+    heaviside_time = inverse_laplace_transform(heaviside_laplace, variable_laplace, variable_time).doit()
+    
+    # =================================== 
+    # Step Response in Laplace Domain
+    StepReponse_laplace = system * heaviside_laplace
+    
+    # Substitute all float numbers
+    if substitute:
+         [StepReponse_laplace, Mapping] = Substitute_Datatype(StepReponse_laplace, datatype="Float")   
+    
+    # Convert StepResponse into Time Domain
+    StepReponse_time = inverse_laplace_transform(StepReponse_laplace, variable_laplace, variable_time).doit()
+    
+    # Re-Substitute all float numbers
+    if substitute:
+         StepReponse_time = ReSubstitute_Datatype(StepReponse_time, Mapping)   
+    
+    # =================================== 
+    if plot:   
+
+        # evaluation of that data
+        heaviside = Extract_Sympy_1Var(heaviside_time, time, variable=variable_time, evaluation=evaluation)   
+        stepresponse = Extract_Sympy_1Var(StepReponse_time, time, variable=variable_time, evaluation=evaluation) 
+        
+        # normalize
+        if normalize_plot:
+            heaviside = heaviside/heaviside[-1]
+            stepresponse = stepresponse/stepresponse[-1]
+              
+    # ===================================        
+        # Plot Settings
+    
+        plot_amp = [[time, heaviside, Name_StepFct, 'linewidth=2.5'],
+                    [time, stepresponse, Name_System, 'linewidth=2.5']]
+
+    # =================================== 
+        # Generate Plot
+        plt.figure(figsize=(10,10))
+        ax1 = plt.subplot(111)
+    
+        basic.Linear_Plot(ax1, plot_amp, Xlabel_time, Ylabel_Amplitude)
+        
+        plt.show()
+    
+        
+    # =================================== 
+    # return time domain systems
+    return[heaviside_time, StepReponse_time]
+
+#############################################################################
+#           Substitute constant values with symboles
+#############################################################################     
+def Substitute_Datatype(symbolic_expression, datatype="Float", add_sym="real=True"):
+        
+    # export expression as text
+    expression = sympy.srepr(symbolic_expression)
+        
+    # Extract Datatype-Command
+    splitted_Expression = expression.split(datatype)
+    splitted_Expression.pop(0)
+        
+    # All found commands
+    mapping = {}
+    
+    # Datatype detected?
+    if len(splitted_Expression) > 0:
+        
+        # Generate Mapping
+        for i in range(len(splitted_Expression)):
+            
+            # Extract Datatype
+            content = splitted_Expression[i][splitted_Expression[i].find("(")+
+                                                 1:splitted_Expression[i].find(")")]
+            content = (datatype + "(" + content + ")")
+            
+            # Generate new Symbol string
+            symbol = "Symbol('" + str(datatype[0]) + str(i) + "', "+ add_sym + ")"
+                
+            # add to mapping
+            mapping[symbol] = content
+                
+            # Replace in string
+            expression_new = expression.replace(content, symbol)
+        
+        # import expression as nummeric equation
+        parsed = parse_expr(expression_new) 
+            
+    else:
+            
+        # return symbolic_expression nothing found
+        parsed = symbolic_expression
+         
+    # return new expression and mapping
+    return [parsed, mapping]
+    
+#############################################################################
+#           Resubstitute constant values with symboles
+#############################################################################   
+def ReSubstitute_Datatype(symbolic_expression, mapping):
+        
+    # export expression as text
+    expression = sympy.srepr(symbolic_expression)
+        
+    if len(mapping) > 0:
+        
+        # iterate all keys
+        for mapping_key in mapping.keys():
+            
+            # Replace in string
+            expression_new = expression.replace(mapping_key, mapping[mapping_key])
+            
+        # import expression as nummeric equation
+        parsed = parse_expr(expression_new) 
+        
+    else:
+        # return symbolic_expression nothing found
+        parsed = symbolic_expression
+    
+    # return old expression
+    return parsed           
