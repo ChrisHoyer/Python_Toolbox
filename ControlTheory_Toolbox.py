@@ -144,6 +144,7 @@ def BodePlot_FBCTRL(feedforward, feedback, freq, variable='s', evaluation="lambd
     feedback                symbolic feedback transfer function
     freq                    frequency range of interest
     variable                (optional) laplace variable
+    PlotBlackWhite          (optional) plot only in black and white
     evaluation              (optional) define the used evalutaion function (lambdify|subs)  
     Add_LoopBW              (optional) Insert LoopBandwidth vertical line
     Name_LoopBW             (optional) Name of Loop Bandwidth
@@ -257,7 +258,88 @@ def BodePlot_FBCTRL(feedforward, feedback, freq, variable='s', evaluation="lambd
    
     # return plot
     return plt
-      
+
+#############################################################################
+#           Generate BodePlot out of symbolic transfer function
+#############################################################################
+def BodePlot(systems, evaluation="lambdify", PlotBlackWhite=False, plotphase=True,
+             Xlabel_freq = ['', 'Hz'], Ylabel_dB = ["", 'dB'], Ylabel_PH = ["", '$^\circ$'] ):
+ 
+############################################################################# 
+    """
+    Generate BodePlot from transfer function
+    
+
+    paramters              description
+    =====================  =============================================:
+    systems                 symbolic systems transfer function as List
+    evaluation              (optional) define the used evalutaion function (lambdify|subs) 
+    PlotBlackWhite          (optional) plot only in black and white
+    Xlabel_freq             (optional) Label and Unit of Frequency X-Axis
+    Ylabel_dB               (optional) Label and Unit of dB Y-Axis 
+    Ylabel_PH               (optional) Label and Unit of phase Y-Axis  
+    
+    return type
+       plot
+       
+    """   
+ ############################################################################# 
+
+    # Plot Settings
+    plot_mag = []
+    plot_phase = []
+
+    # ===================================     
+    # Iterate all Equations
+    for index in range(len(systems)):
+        
+        # get system
+        system = systems[index]
+        
+        # Frequency Scale to j*w
+        freq = system[0]
+        omega = 2j*np.pi * freq
+        
+        # Generate OpenLoop Transfer Function
+        system_extract = Extract_Sympy_1Var(system[1], omega, evaluation=evaluation)
+        system_extract = basic.CMPLX2Format(system_extract)
+ 
+        # Generate Magnitude Plot Settings
+        plot_mag.append([freq, 
+                         system_extract['dB'],
+                         system[2] + " " + r'$|' + system[3] + r'|$',
+                         system[4]
+                         ])
+        
+        if plotphase:
+            # Generate Magnitude Plot Settings
+            plot_phase.append([freq, 
+                               system_extract['PhaseDeg'],
+                               system[2] + " " + r'$\angle~(' + system[3] + r'(|)$',
+                               system[4]
+                               ]) 
+   
+    # =================================== 
+    # Generate Plot
+    
+    # plot with phase
+    if plotphase:
+        plt.figure(figsize=(10,10))
+        ax1 = plt.subplot(211)
+        ax2 = plt.subplot(212)  
+        
+        basic.SemiLogX_Plot(ax1, plot_mag, Xlabel_freq, Ylabel_dB, BlackWhite=PlotBlackWhite)
+        basic.SemiLogX_Plot(ax2, plot_phase, Xlabel_freq, Ylabel_PH, BlackWhite=PlotBlackWhite)
+            
+    else:
+        plt.figure(figsize=(10,5))
+        ax1 = plt.subplot(111)  
+        basic.SemiLogX_Plot(ax1, plot_mag, Xlabel_freq, Ylabel_dB, BlackWhite=PlotBlackWhite)      
+       
+    # return plot
+    return plt
+ 
+     
 #############################################################################
 #           Generate StepResponse out of symbolic transfer function
 #############################################################################
