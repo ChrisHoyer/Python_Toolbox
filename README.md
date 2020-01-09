@@ -32,7 +32,7 @@ Major focus on plotting:
 - Digitalize_Data: Generates binary stream from data and clock
 - CMPLX2Format: converts complex numbers in different formats
 - Average: Average a Dataset
-- FFTData: Generates a FFT out the Data
+- FrequencyFiltering: Frequency Filtering of Data
 - String2List: Generates a List out of a csv with one line
 
 ### ControlTheory_Toolbox
@@ -42,8 +42,9 @@ Major fucus on control theorie and plotting
  - BodePlot_FBCTRL: Generate BodePlot out of symbolic feedback transfer function
  - BodePlot: Generate BodePlot out of symbolic transfer function
  - StepResponse: Generate Step Response with Heaviside Fct from symbolic transfer function
- - ReSubstitute_Datatype: Resubstitute constant values with symboles
  - Substitute_Datatype: Substitute constant values with symboles
+ - ReSubstitute_Datatype: Resubstitute constant values with symboles
+
 
 ### Mapping_Toolbox
 Major focus on WaferMapping:

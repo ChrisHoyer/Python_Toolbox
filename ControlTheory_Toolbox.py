@@ -3,8 +3,8 @@
 # - Extract_Sympy_1Var: Substitutes Sympy and generates numeric solution
 # - BodePlot_FBCTRL: Generate BodePlot out of symbolic feedback transfer function
 # - StepResponse: Generate Step Response with Heaviside Fct from symbolic transfer function
-# - ReSubstitute_Datatype: Resubstitute constant values with symboles
 # - Substitute_Datatype: Substitute constant values with symboles
+# - ReSubstitute_Datatype: Resubstitute constant values with symboles
 #
 #   Autor: C. Hoyer (choyer.ch@gmail.com)
 #   Stand: 03-01-2020

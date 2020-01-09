@@ -14,7 +14,7 @@
 # - Digitalize_Data: Generates binary stream from data and clock
 # - CMPLX2Format: converts complex numbers in different formats
 # - Average: Average a Dataset
-# - FFTData: Generates a FFT out the Data
+# - FrequencyFiltering: Frequency Filtering of Data
 # - String2List: Generates a List out of a csv with one line
 #
 #   Autor: C. Hoyer (choyer.ch@gmail.com)
@@ -725,7 +725,7 @@ def Linear_Plot(ax, Plot_list, X_label, Y_label, Legend=True, LegendLoc=0,
         # Generate Plot
         plt.figure(figsize=(7.5,12))
         ax1 = plt.subplot(111)
-        pcb.Linear_Plot(ax1, Plot, X_label, Ylabel)  
+        pcb.Linear_Plot(ax1, Plot, Xlabel, Ylabel)  
         plt.show()
    
     """        
