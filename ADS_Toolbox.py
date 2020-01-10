@@ -9,7 +9,7 @@
 #   - MixedModeSparam: Extrahiert Mixed Mode Paramters aus Simulation
 #   - ImportS2P: Importiert S2P File und berechnet Z und H Parameter
 #
-#   Autor: C. Hoyer (choyer.ch@gmail.com)
+#   Autor: C. Hoyer (info@chrishoyer.de)
 #   Stand: 26.03.19
 #############################################################################
 
@@ -35,7 +35,7 @@ def ImportData(file, Rename=False, Rename_Table = [], Merge=False, MergeColumn='
         3	-9	  2.20127736891134520E0
         3	-8	  3.18563038209765810E0
 
-    paramters              description
+    parameters              description
     =====================  =============================================:
     file                    path to file
     Rename                  boolean to rename columns  
@@ -212,7 +212,7 @@ def Calc_HarmonicBalance_Single(Data, Freq, lin_point_shift=0, lin_point_toleran
     
     Data format should be from the function: ImportData()
 
-    paramters              description
+    parameters              description
     =====================  =============================================:
     Data                    data from ImportData()
     Freq                    frequency from dataset (must be same datatype etc)

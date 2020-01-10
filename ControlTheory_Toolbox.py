@@ -6,7 +6,7 @@
 # - Substitute_Datatype: Substitute constant values with symboles
 # - ReSubstitute_Datatype: Resubstitute constant values with symboles
 #
-#   Autor: C. Hoyer (choyer.ch@gmail.com)
+#   Autor: C. Hoyer (info@chrishoyer.de)
 #   Stand: 03-01-2020
 #############################################################################
 

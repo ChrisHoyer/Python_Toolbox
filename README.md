@@ -45,6 +45,12 @@ Major fucus on control theorie and plotting
  - Substitute_Datatype: Substitute constant values with symboles
  - ReSubstitute_Datatype: Resubstitute constant values with symboles
 
+### sll_toolbox
+Major Focus on state-locked-loops
+
+ - Solve_Models: Iterative solver for each SSL Model
+ - Bi_2Nodes_Lap_Freq: Simple Network in Laplace with two bidirectional coupled nodes to Calc Global Freq
+  - Bi_2Nodes_Tim_Freq: Script by Dimitrios, just for comparison
 
 ### Mapping_Toolbox
 Major focus on WaferMapping:
