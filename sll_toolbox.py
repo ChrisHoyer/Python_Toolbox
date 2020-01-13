@@ -1,7 +1,6 @@
 #############################################################################
 #   Different Scripts to Model State-Locked-Loops
 #
-#   - Solve_Models: Iterative solver for each SSL Model
 #   - Bi_2Nodes_Lap_Freq: Simple Network in Laplace with two bidirectional coupled nodes to Calc Global Freq
 #   - Bi_2Nodes_Tim_Freq: Script by Dimitrios, just for comparison
 #
@@ -11,30 +10,36 @@
 
 import numpy as np
 import scipy as sp
+
 #############################################################################
-###                 Bi_2Nodes_Lap
+###                 Bi_2Nodes_Lap_Freq
 #############################################################################
-def Bi_2Nodes_Lap(last_state, delay, G_OL, delay_phase = True,
-                  coupling_function= "sawthooth", 
-                  coupling_scale=0.5, coupling_offset=1):
+def Bi_2Nodes_Lap_Freq(last_state, delay, G_OL, freq0_div,
+                       delay_phase = True, coupling_function= "sawthooth", 
+                       coupling_scale=0.5, coupling_offset=0):
 #############################################################################    
     """
    Simple Network in Laplace with two bidirectional coupled nodes to calculate
-   the global network frequency
+   the global network frequency vs the phase delay
    Note, that this is a differential equation. Where the init value has to be set.
     
     parameters              description
     =====================  =============================================:
     last_state              last state from (as tuple!)
     delay                   current delay value
-    G_OL                    open loop transfer function gain
-    delay_phase             delay in phase in rad (N*pi)
-    coupling_function       PD coupling function (XOR=sawthooth)
-    coupling_scale          rescale of PD coupling function output
-    coupling_offset         offset of PD coupling function output    
+    G_OLA                   open loop transfer function gain node A
+    G_OLB                   (optionally) open loop transfer function gain node B
+    freq0A_div              divided center frequency node A
+    freq0B_div              (optionally) divided center frequency node B
+    phaseoffset_A           (optionally) phase offset related to node A
+    phaseoffset_B           (optionally) phase offset related to node B
+    delay_phase             (optionally) delay in phase in rad (N*pi)
+    coupling_function       (optionally) PD coupling function (XOR=sawthooth, Mixer=cos)
+    coupling_scale          (optionally) rescale of PD coupling function output
+    coupling_offset         (optionally) offset of PD coupling function output    
     
     return type
-       next_state as tuple
+       next_state and time delay as tuple [x0, x1, tau0, tau1]
     
     Example:
         
@@ -42,7 +47,8 @@ def Bi_2Nodes_Lap(last_state, delay, G_OL, delay_phase = True,
         
 
     """
-#############################################################################     
+#############################################################################   
+    
     # delay format
     if delay_phase:
         # delay is respresented as phase in radian (0... 2pi)
@@ -65,6 +71,11 @@ def Bi_2Nodes_Lap(last_state, delay, G_OL, delay_phase = True,
         delta_phase0 = sp.signal.sawtooth(phase_difference0, width=0.5)
         delta_phase1 = sp.signal.sawtooth(phase_difference1, width=0.5)
 
+    elif coupling_function == "cos":
+        
+        # Calculate Sawthooth function        
+        delta_phase0 = np.cos(phase_difference0)
+        delta_phase1 = np.cos(phase_difference1)
         
     else:
         # no coupling
@@ -75,11 +86,25 @@ def Bi_2Nodes_Lap(last_state, delay, G_OL, delay_phase = True,
     delta_phase0 = coupling_scale*(delta_phase0 + coupling_offset)
     delta_phase1 = coupling_scale*(delta_phase1 + coupling_offset)
     
+    # calculate global frequency
+    freq0 = G_OL * delta_phase0 + freq0_div
+    freq1 = G_OL * delta_phase1 + freq0_div
+    
+    # calculate time delay
+    tau0 = delay/(2*np.pi*freq0)
+    tau1 = delay/(2*np.pi*freq1) 
+    
     # return variable
     next_state = []
     
-    # Steady State Frequency Model
-    next_state[0] = G_OL * delta_phase0 + freq_0/N
-    next_state[1] = G_OL * delta_phase1 + freq_0/N
-        
+    # Steady State Phase Model (Freq) [x0, x1]
+    next_state.append(freq0)
+    next_state.append(freq1)
+
+    # Steady State Phase Model (Delay) [tau0, tau1]
+    next_state.append(tau0)
+    next_state.append(tau1)
+            
     return next_state
+
+#############################################################################  
