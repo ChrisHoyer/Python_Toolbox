@@ -263,7 +263,8 @@ def BodePlot_FBCTRL(feedforward, feedback, freq, variable='s', evaluation="lambd
 #           Generate BodePlot out of symbolic transfer function
 #############################################################################
 def BodePlot(systems, evaluation="lambdify", PlotBlackWhite=False, plotphase=True,
-             Xlabel_freq = ['', 'Hz'], Ylabel_dB = ["", 'dB'], Ylabel_PH = ["", '$^\circ$'] ):
+             Xlabel_freq = ['', 'Hz'], Ylabel_dB = ["", 'dB'], Ylabel_PH = ["", '$^\circ$'],
+             fig = plt.figure(figsize=(10,10))):
  
 ############################################################################# 
     """
@@ -277,7 +278,8 @@ def BodePlot(systems, evaluation="lambdify", PlotBlackWhite=False, plotphase=Tru
     PlotBlackWhite          (optional) plot only in black and white
     Xlabel_freq             (optional) Label and Unit of Frequency X-Axis
     Ylabel_dB               (optional) Label and Unit of dB Y-Axis 
-    Ylabel_PH               (optional) Label and Unit of phase Y-Axis  
+    Ylabel_PH               (optional) Label and Unit of phase Y-Axis
+    fig                     (optional) matplot figure
     
     return type
        plot
@@ -324,16 +326,19 @@ def BodePlot(systems, evaluation="lambdify", PlotBlackWhite=False, plotphase=Tru
     
     # plot with phase
     if plotphase:
-        plt.figure(figsize=(10,10))
         ax1 = plt.subplot(211)
-        ax2 = plt.subplot(212)  
-        
+        ax2 = plt.subplot(212)
+        fig.add_axes(ax1)
+        fig.add_axes(ax2)
+         
         basic.SemiLogX_Plot(ax1, plot_mag, Xlabel_freq, Ylabel_dB, BlackWhite=PlotBlackWhite)
         basic.SemiLogX_Plot(ax2, plot_phase, Xlabel_freq, Ylabel_PH, BlackWhite=PlotBlackWhite)
             
     else:
-        plt.figure(figsize=(10,5))
-        ax1 = plt.subplot(111)  
+        ax1 = plt.subplot(111)
+        fig.add_axes(ax1)
+        
+        
         basic.SemiLogX_Plot(ax1, plot_mag, Xlabel_freq, Ylabel_dB, BlackWhite=PlotBlackWhite)      
        
     # return plot
