@@ -116,7 +116,7 @@ def Extract_Sympy_1Var(symbolic, eval_range, variable='s', evaluation="lambdify"
 #           Generate BodePlot out of symbolic transfer function
 #############################################################################
 def BodePlot_FBCTRL(feedforward, feedback, freq, variable='s', evaluation="lambdify",
-                    Add_LoopBW = True, Add_PhaseMargin = True, Add_MaxPhaseMargin = True,
+                    Add_LoopBW = False, Add_PhaseMargin = True, Add_MaxPhaseMargin = True,
                     PlotBlackWhite = False,
                     Name_LoopBW= r'$f_\mathrm{loop}$ = ',Scale_LoopBW = 1e3,  Unit_LoopBW= 'kHz',
                     Name_PhaseMargin= r'$\varphi_\Delta$ = ', Max_PhaseMargin = -180,

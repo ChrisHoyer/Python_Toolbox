@@ -10,11 +10,13 @@
 
 import numpy as np
 import scipy as sp
+from scipy import signal
 
 #############################################################################
 ###                 Bi_2Nodes_Lap_Freq
 #############################################################################
-def Bi_2Nodes_Lap_Freq(last_state, delay, G_OL, freq0_div,
+def Bi_2Nodes_Lap_Freq(last_state, delay, GA_OL, freq0A_div,
+                       GB_OL = 0.0, freq0B_div = 0.0,
                        delay_phase = True, coupling_function= "sawthooth", 
                        coupling_scale=0.5, coupling_offset=0):
 #############################################################################    
@@ -27,8 +29,8 @@ def Bi_2Nodes_Lap_Freq(last_state, delay, G_OL, freq0_div,
     =====================  =============================================:
     last_state              last state from (as tuple!)
     delay                   current delay value
-    G_OLA                   open loop transfer function gain node A
-    G_OLB                   (optionally) open loop transfer function gain node B
+    GA_OL                   open loop transfer function gain node A
+    GB_OL                   (optionally) open loop transfer function gain node B
     freq0A_div              divided center frequency node A
     freq0B_div              (optionally) divided center frequency node B
     phaseoffset_A           (optionally) phase offset related to node A
@@ -49,6 +51,19 @@ def Bi_2Nodes_Lap_Freq(last_state, delay, G_OL, freq0_div,
     """
 #############################################################################   
     
+    # heterogeneous or homogeneous case
+    if GB_OL == 0.0:
+        GB_OL = GA_OL
+    
+    if freq0B_div == 0.0:
+        freq0B_div = freq0A_div
+        
+    # Consider a frequency difference
+    delta_freq0 = np.abs(freq0B_div - freq0A_div)
+    mean_freq0 = np.mean([freq0B_div,freq0A_div])
+    phaselag = 0.25*np.pi
+    
+    
     # delay format
     if delay_phase:
         # delay is respresented as phase in radian (0... 2pi)
@@ -61,8 +76,8 @@ def Bi_2Nodes_Lap_Freq(last_state, delay, G_OL, freq0_div,
     
 
     # Calculate phase difference based on delay in radian
-    phase_difference0 = last_state[0] + tau_phase0 - last_state[1]
-    phase_difference1 = last_state[1] + tau_phase1 - last_state[0]
+    phase_difference0 = last_state[0] - tau_phase0 - last_state[1]
+    phase_difference1 = last_state[1] - tau_phase1 - last_state[0]
  
 
     if coupling_function == "sawthooth":
@@ -87,8 +102,8 @@ def Bi_2Nodes_Lap_Freq(last_state, delay, G_OL, freq0_div,
     delta_phase1 = coupling_scale*(delta_phase1 + coupling_offset)
     
     # calculate global frequency
-    freq0 = G_OL * delta_phase0 + freq0_div
-    freq1 = G_OL * delta_phase1 + freq0_div
+    freq0 = GA_OL * delta_phase0 + freq0A_div
+    freq1 = GB_OL * delta_phase1 + freq0B_div
     
     # calculate time delay
     tau0 = delay/(2*np.pi*freq0)
