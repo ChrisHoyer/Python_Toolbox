@@ -32,8 +32,8 @@ import re
 ###         Import CSV File to a dictionary
 #############################################################################
 def CSV2Dict(csv_file, delimiter=';', complexdelimiter='/', 
-             headerline_ends= 1, blockheader=False, dictkey=False,
-             headerkeys=[], **kwargs):
+             headerline_ends= 1, blockheader=False, blockkeys=[],
+             headerkeys=[], cellsize=[], **kwargs):
 ############################################################################# 
         """
     Imports all CSV Data (also complex and logarithmic data)
@@ -44,10 +44,11 @@ def CSV2Dict(csv_file, delimiter=';', complexdelimiter='/',
     csv_file                csv file
     delimiter               (option) csv file delimiter
     complexdelimiter        (option) delimiter if there is a complex value
-    blockheader             (option) each block has a header? (e.g. ADS, or global header?)
+    blockheader             (option) each block has header?
     headerline_ends         (option) end of header (skip until this line)
-    dictkey                 (option) try to parse dictkeys instead of block number
+    blockkeys               (option) custom block header names (must be equal to block count)
     headerkeys              (option) custom header names (must be equal to row count)
+    cellsize                (option) cellsize of each cell
     
     return type
        dictionary with each column or nested dictionary
@@ -66,40 +67,44 @@ def CSV2Dict(csv_file, delimiter=';', complexdelimiter='/',
     """
 #############################################################################  
         # row state
-        States = ['', 'SimpleNumber', 'ComplexNumber', 'NewBlock']
+        States = ['', 'SimpleNumber', 'ComplexNumber', 'Text', 'Array']
         
         # Matching Numbers to parse float / scientific data
         scientific_number = re.compile('[-+]?\ *[0-9]+\.?[0-9]*(?:[Ee]\ *[-+]?\ *[0-9]+)?')  
-
-############################################################################# 
+        
+                
+#############################################################################
         
         def CSVData_DefineContent(header, row, v):
             
-            # Try to Parse the Data
+            # Default: No State
             Current_State = States[0]
+            
+            # remove leading or tailing whitespaces
+            cell_content = v.strip()
             
             # only plain Number (normal or scientific)
             try:
-                float(v)
+                float(cell_content)
                 Current_State = States[1]
                     
             except:
                 
-                # Row without Data?
-                if len(row) != len(header):
-                    Current_State = States[3]  
-                    
-                # Row with Text?
-                if (type(v) is str) & (v != "") :
+                # Data is Array?
+                if (type(cell_content) is str) & (cell_content[0] == '[') & (cell_content[-1] == ']'):
+                     Current_State = States[4]                     
+                                      
+                # Row with Text and not empty?
+                elif (type(cell_content) is str) & (cell_content != "") :
                      Current_State = States[3]                     
                     
                 # Contains two values? -> Complex
-                elif len(v.split(complexdelimiter)) == 2:
+                elif len(cell_content.split(complexdelimiter)) == 2:
                     Current_State = States[2]
-
+                    
             return Current_State
 
-############################################################################# 
+#############################################################################
             
         def CSVData_ParseContent(header, row, v):
             
@@ -136,6 +141,16 @@ def CSV2Dict(csv_file, delimiter=';', complexdelimiter='/',
                     # new Block starts
                     v_parsed = States[3]
                     
+                # Array?
+                elif State == States[4]:
+                    
+                    # generate list
+                    v_parsed = v.replace('[', "").replace(']', "")
+                    v_parsed = v_parsed.split(",")
+                    
+                    # float
+                    v_parsed = [float(i.strip()) for i in v_parsed]
+                    
                 else:
                     v_parsed = float('NaN')
                     print("Data " + str(v) + " could not be parsed!")                  
@@ -145,128 +160,132 @@ def CSV2Dict(csv_file, delimiter=';', complexdelimiter='/',
                 
             return v_parsed
             
-#############################################################################   
+#############################################################################                
+
         # Import CSV Matrix
         csv_reader = csv.reader(open(csv_file), delimiter=delimiter)
+		
+		# start with first line
         global_line_count = 0
         
-        # generate Block
-        Block = {}
-        line_count = 0
-        NewBlockStart = False
-        
-        # generate Block Content
+        # generate new Block
+        NewBlockStart = True
+        block_line = 0
         block_name = ''
         block_count = 0
+        
+        # Content
+        Block = {}
         Data = {}
         
-        # no data region
-        data_region = False
         
  #############################################################################  
-        # Import Block
+        
+        # Iterate each row of the file
         for row in csv_reader:
-              
+             
+            # Skip Global Header
+            if  global_line_count < (headerline_ends):
+                global_line_count += 1
+                continue
+			 
             # empty row? -> skip and  new Block
             if not row:
                 NewBlockStart = True
                 continue
             
-            # get Block
+            # name new block
             if NewBlockStart:
                 
-                # Blockname found?
-                if not dictkey:
+                # Any external names defined?
+                if not blockkeys:
                     block_name = block_count
-                   
-                # delete rows
-                block_deleteRow = []
-                    
-                # check if rows are empty:
-                for block_row in Block:
-                    if len(Block[block_row]) == 0:
-                        block_deleteRow.append(block_row)
-                    
-                # delete empty rows
-                for deleteRow in block_deleteRow:
-                    Block.pop(deleteRow)
-                        
-                # add if it is not empty
-                if Block:              
-                    # Add to Data
-                    Data[block_name] = Block
-                
-                # clear flag
-                NewBlockStart = False
-
-                # start new lines and count Block
-                Block = {}
-                block_name = ''
-                block_count += 1
-                line_count = 0
+                else:
+                    block_name = blockkeys[block_count]
             
-
-            # Skip Global Header
-            if  global_line_count < (headerline_ends):
-                global_line_count += 1
-                continue
-
-            # Find beginning of the Block
-            if line_count == 0 :
+            # starting new block
+            if block_line == 0:
                 
-                if blockheader or block_count == 0:
-                    # read new/first block header
-                    header = [r.replace(' ', '') for r in row]
+                # Using current line as Header
+                header = [r.strip() for r in row]
                 
-                # Generate Custom Header
+                # TODO? What happend, when there is no header? i.e. ADS export
+                
+                # external header defined and same size?
                 if len(header) == len(headerkeys):
-                      header = headerkeys
-                
-                # Generate Columnheader from first row
-                for h in header:
-                    Block[h] = [] 
-            
-            # decide when the data region beginns
-            if not(blockheader):
-                data_region = True
-            else:
-                data_region = False
-
-            # end of header reached? -> Data region
-            if data_region:
-                
-                # iterate row
-                for h, v in zip(header, row):
+                    header = headerkeys
                     
-                    # Classify Data and Parse
-                    parsed_Data = CSVData_ParseContent(header, row, v)
+                # generate header for empty block dictinary
+                for h in header:
+                    Block[h] = []
+ 
+ ############################################################################# 
+                    
+            # data content begins
+            if block_line > 0:
+                
+                # row is larger then header?
+                if len(row) > len(header):
+                    
+                    #rearrange row to match cellsize
+                    if len(cellsize) == len(header):
+                        
+                        # generate new row
+                        new_row = []
+                        lastsize = 0
+                        
+                        # iterate cellsize and rearrange
+                        for size in cellsize:
+
+                            # bring into new row
+                            newcell = row[lastsize:(size+lastsize)]
+                            lastsize = size
+                            
+                            # only one item?
+                            if len(newcell) == 1:
+                                newcell = str(newcell).replace("'","")
+                                newcell = newcell.replace('[', "").replace(']', "")
+                            else:
+                                newcell = str(newcell).replace("'","")
+                            
+                            # include new cell into new row
+                            new_row.append(newcell)
+                            
+                        # generate new row, with right length
+                        row = new_row
+                        
+                    else:
+                        print("Please include cellsize!")
+                        return 0
+                    
+                # iterate row with repect to header
+                for header_cell, cell in zip(header,row):
+                    
+                    # classify data and parse content
+                    parsed_Data = CSVData_ParseContent(header, row, cell)
                     
                     # Header found?
                     if parsed_Data == States[3]:
                         NewBlockStart = True
+                        
+                        # TODO New Block
                         continue
                         
-                    Block[h].append(parsed_Data)
-                              
-            # next line    
-            line_count += 1
+                    # add Data into Block
+                    Block[header_cell].append(parsed_Data)
+                       
+            # next line
+            block_line += 1
             global_line_count += 1
             
-        # last Block
-        if Block:
+  #############################################################################                    
             
-            # Blockname?
-            if not dictkey:
-                block_name = block_count
-            
-            # Add to Dataset
-            Data[block_name] = Block
-          
         # only one Block? 
         if block_count == 0:
             return Block
         else:
             return Data
+
 ############################################################################# 
     
 #############################################################################
