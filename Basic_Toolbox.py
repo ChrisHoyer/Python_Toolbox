@@ -32,7 +32,7 @@ import re
 ###         Import CSV File to a dictionary
 #############################################################################
 def CSV2Dict(csv_file, delimiter=';', complexdelimiter='/', 
-             headerline_ends= 1, blockheader=False, blockkeys=[],
+             headerline_ends=0, blockheader=False, blockkeys=[],
              headerkeys=[], cellsize=[], **kwargs):
 ############################################################################# 
         """

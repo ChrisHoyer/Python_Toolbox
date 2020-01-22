@@ -16,7 +16,7 @@ from scipy import signal
 ###                 Bi_2Nodes_Lap_Freq
 #############################################################################
 def Bi_2Nodes_Lap_Freq(last_state, delay, GA_OL, freq0A_div,
-                       GB_OL = 0.0, freq0B_div = 0.0,
+                       GB_OL = 0.0, freq0B_div = 0.0, INV = True, shift=0,
                        delay_phase = True, coupling_function= "sawthooth", 
                        coupling_scale=0.5, coupling_offset=0):
 #############################################################################    
@@ -76,8 +76,8 @@ def Bi_2Nodes_Lap_Freq(last_state, delay, GA_OL, freq0A_div,
     
 
     # Calculate phase difference based on delay in radian
-    phase_difference0 = last_state[0] - tau_phase0 - last_state[1]
-    phase_difference1 = last_state[1] - tau_phase1 - last_state[0]
+    phase_difference0 = last_state[0] - tau_phase0 - last_state[1] - (INV*np.pi)
+    phase_difference1 = last_state[1] - tau_phase1 - last_state[0] - (INV*np.pi) - shift
  
 
     if coupling_function == "sawthooth":
