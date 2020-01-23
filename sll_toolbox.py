@@ -76,7 +76,7 @@ def Bi_2Nodes_Lap_Freq(last_state, delay, GA_OL, freq0A_div,
     
 
     # Calculate phase difference based on delay in radian
-    phase_difference0 = last_state[0] - tau_phase0 - last_state[1] - (INV*np.pi)
+    phase_difference0 = last_state[0] - tau_phase0 - last_state[1] - (INV*np.pi) - shift
     phase_difference1 = last_state[1] - tau_phase1 - last_state[0] - (INV*np.pi) - shift
  
 

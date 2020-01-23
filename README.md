@@ -24,6 +24,7 @@ Major focus on plotting:
 - FindPoint_FitFct: fits higher order Polynom against Dataset to find point
 - Linearization_Point: linearization around one point
 - Linear_Plot: linear plot function with automated labeling
+- Box_Plot: Boxplots with automated labeling
 - SemiLogX_Plot: semilog x plot function with automated labeling
 - Vline_Plot: generates vertical line in plot with label
 - Hline_Plot: generates horizontal line in plot with label

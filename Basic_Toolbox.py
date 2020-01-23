@@ -6,6 +6,7 @@
 # - FindPoint_FitFct: fits higher order Polynom against Dataset to find point
 # - Linearization_Point: linearization around one point
 # - Linear_Plot: linear plot function with automated labeling
+# - Box_Plot: Boxplots with automated labeling
 # - SemiLogX_Plot: semilog x plot function with automated labeling
 # - Vline_Plot: generates vertical line in plot with label
 # - Hline_Plot: generates horizontal line in plot with label
@@ -237,16 +238,19 @@ def CSV2Dict(csv_file, delimiter=';', complexdelimiter='/',
                         # iterate cellsize and rearrange
                         for size in cellsize:
 
-                            # bring into new row
-                            newcell = row[lastsize:(size+lastsize)]
-                            lastsize = size
-                            
                             # only one item?
-                            if len(newcell) == 1:
+                            if size == 1:
+                                newcell =  row[lastsize]
                                 newcell = str(newcell).replace("'","")
-                                newcell = newcell.replace('[', "").replace(']', "")
+                                lastsize = size
+                                
                             else:
+                                # bring into new row
+                                newcell = row[lastsize:(size+lastsize)]
                                 newcell = str(newcell).replace("'","")
+                                lastsize = size + 1
+                                
+
                             
                             # include new cell into new row
                             new_row.append(newcell)
@@ -837,6 +841,124 @@ def Linear_Plot(ax, Plot_list, X_label, Y_label, Legend=True, LegendLoc=0,
         ax.grid(which='minor', alpha=1, linestyle=':', linewidth=1)
         ax.grid(which='major', alpha=1, linewidth=1.2)    
         
+    #retrn
+    return ax
+
+#############################################################################
+###         Generate Plot for Time Domain / Linear
+#############################################################################
+def Box_Plot(ax, XDataset , YDataset, X_label, Y_label, boxwidth=0,
+             Legend="", LegendLoc=0,
+             Ylim=None, XAutolim=False, grid=False, fontsize=12, **kwargs):
+#############################################################################  
+    """
+    Prepares a X-Y linear plot
+
+    paramters              description
+    =====================  =============================================:
+    ax                      plot axis
+    XDataset                all X Datas as vector
+    YDataset                all Y Datas as list
+    X_label                 X Axis Label and Unit (Engineering Package)
+    Y_label                 Y Axis Label and Unit (Engineering Package)
+    Legend                  (option) plot legend
+    LegendLoc               (option) legend location
+    boxwidth                (option) width of box in boxplot
+    Ylim                    (option) set Y-Axis limits
+    grid                    (option) enable grid
+    fontsize                (option) Fontsize of this Plot 
+ 
+    return type
+       None  (writes directly into axis)
+      
+    Example:
+        
+        import basic_toolbox as basic
+        
+        ...
+        
+        # Prepare
+        Xlabel = [YLabel, 'V']
+        Ylabel = [YLabel, 'V']
+        Xdata = ...
+        Ydata = ...
+        
+        # Generate Plot
+        plt.figure(figsize=(10,5))
+        ax1 = plt.subplot(111)
+        pcb.Linear_Plot(ax1, xdata, Xdata, Xlabel, Ylabel)  
+        plt.show()
+   
+    """        
+#############################################################################      
+
+    # save xticks and xlim before
+    xticks_old = ax.get_xticks()
+    xlim_old = ax.get_xlim()
+    
+    # find all old legends
+    legend_old_handles, legend_old_labels = ax.get_legend_handles_labels()
+
+    # calculate box width with 25% of min distance between X Points 
+    if not boxwidth:
+        boxwidth = np.mean(np.abs(XDataset-np.roll(XDataset,1)))*0.25
+            
+    # create box plot
+    bp = ax.boxplot(YDataset, positions=XDataset, widths=boxwidth, **kwargs)
+      
+    # label
+    ax.set_ylabel(Y_label[0])
+    ax.yaxis.set_major_formatter(tck.EngFormatter(unit=Y_label[1]))
+    ax.set_xlabel(X_label[0])
+    ax.xaxis.set_major_formatter(tck.EngFormatter(unit=X_label[1]))
+        
+    # xlimit    
+    if Ylim:
+        ax.set_ylim([Ylim[0],Ylim[1]])
+        
+    if Legend:
+        
+        legend_old_handles.append(bp["boxes"][0])
+        legend_old_labels.append(Legend)
+        
+        # legend
+        ax.legend(legend_old_handles, legend_old_labels, loc=LegendLoc)
+
+    # Generate new Grid
+    if grid:
+        ax.minorticks_on()
+        ax.grid(True, which='major')
+        ax.grid(which='minor', alpha=1, linestyle=':', linewidth=1)
+        ax.grid(which='major', alpha=1, linewidth=1.2) 
+    else:
+        ax.set_xticks(xticks_old)
+        
+    # xlimit
+    if XAutolim:
+        
+        # search min and max x values of all axes
+        x_limit_min = np.min(XDataset[0])
+        x_limit_max = np.max(XDataset[0])
+        
+        # iterate all traces
+        for trace in ax.get_lines():
+            
+            # find new min value
+            if np.min(trace.get_xdata()) < x_limit_min:
+                x_limit_min = np.min(trace.get_xdata())
+ 
+            # find new min value
+            if np.max(trace.get_xdata()) > x_limit_max:
+                x_limit_max = np.max(trace.get_xdata())           
+        
+        # set x limit
+        ax.set_xlim([x_limit_min,x_limit_max])
+        
+    else:
+        ax.set_xlim(xlim_old)
+        
+
+    
     #retrn
     return ax
 
