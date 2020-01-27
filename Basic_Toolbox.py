@@ -17,8 +17,9 @@
 # - Average: Average a Dataset
 # - FrequencyFiltering: Frequency Filtering of Data
 # - String2List: Generates a List out of a csv with one line
+# - XYZ_Plot: generates 3D Plot (X,Y,Z) for i.e. waterfall diagrams
 #
-#   Autor: C. Hoyer (choyer.ch@gmail.com)
+#   Autor: C. Hoyer (info@chrishoyer.de)
 #   Stand: 02-01-2020
 #############################################################################
 
@@ -1673,4 +1674,71 @@ def String2List(file, delimiter=','):
     return Output
   
 
+#############################################################################
+##          XYZ-Plot
+#############################################################################
+def XYZ_Plot(raw_data, xname="Time[s]", yname="Freq[Hz]", zname="Mag[dBm]"):
+############################################################################# 
+    """
+    Average of YData, both data arrays will be splitted into eqal chunks
+
+    paramters              description
+    =====================  =============================================:
+    raw_data                input dict with 3 levels
+    xname                   name of x dict
+    yname                   name of y dict
+    zname                   name of z dict
     
+    return type
+       x,y and grid matrix
+                  
+    """   
+#############################################################################    
+    data_xyz = {}
+    grid_y = []
+    grid_x = raw_data[xname]
+    
+    # Generate Dictionary with Values
+    for xindex in range(len(raw_data[xname])):
+        
+        # List with equal time
+        x = raw_data[xname][xindex]
+        same_x = {}
+        
+        for yindex in range(len(raw_data[yname][xindex])):
+                
+            # extract data
+            y = raw_data[yname][xindex][yindex]
+            z = raw_data[zname][xindex][yindex]
+            
+            # generate y axis
+            if y not in grid_y:
+                grid_y.append(y)
+    
+            # insert into array
+            same_x[y] = z
+            
+        data_xyz[x] = same_x
+    
+    # sort list by value
+    grid_y.sort()
+    
+    # empty data matrix    
+    grid_xyz = np.zeros((len(grid_y),len(grid_x)))
+
+############################################################################# 
+    
+    # fill matrix with points
+    for index_x in range(len(grid_x)):
+        for index_y in range(len(grid_y)):
+            
+            # can be parsed?
+            try:
+                z_value = data_xyz[grid_x[index_x]][grid_y[index_y]]
+            except:
+                z_value = float("NaN")
+                
+            grid_xyz[index_y][index_x] = z_value
+        
+
+    return [grid_x, grid_y, grid_xyz]   

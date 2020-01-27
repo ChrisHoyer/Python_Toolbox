@@ -35,6 +35,7 @@ Major focus on plotting:
 - Average: Average a Dataset
 - FrequencyFiltering: Frequency Filtering of Data
 - String2List: Generates a List out of a csv with one line
+- XYZ_Plot: generates 3D Plot (X,Y,Z) for i.e. waterfall diagrams
 
 ### ControlTheory_Toolbox
 Major fucus on control theorie and plotting
