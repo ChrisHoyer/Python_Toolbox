@@ -50,9 +50,10 @@ Major fucus on control theorie and plotting
 ### sll_toolbox
 Major Focus on state-locked-loops
 
- - Solve_Models: Iterative solver for each SSL Model
- - Bi_2Nodes_Lap_Freq: Simple Network in Laplace with two bidirectional coupled nodes to Calc Global Freq
-  - Bi_2Nodes_Tim_Freq: Script by Dimitrios, just for comparison
+ - Bi_2Nodes_Freq_Stab: Simple Network in Laplace with two bidirectional coupled nodes to Calc Global Freq
+ 
+ Prototype Models:
+ - Model_3thGen_V1_1_homogen
 
 ### Mapping_Toolbox
 Major focus on WaferMapping:

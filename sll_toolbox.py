@@ -1,27 +1,30 @@
 #############################################################################
 #   Different Scripts to Model State-Locked-Loops
 #
-#   - Bi_2Nodes_Lap_Freq: Simple Network in Laplace with two bidirectional coupled nodes to Calc Global Freq
-#   - Bi_2Nodes_Tim_Freq: Script by Dimitrios, just for comparison
+#   - Bi_2Nodes_Freq_Stab: Simple Network in Laplace with two bidirectional coupled nodes to Calc Global Freq
+#
+#   Prototype Models
+#   - Model_3thGen_V1_1_homogen
 #
 #   Autor: C. Hoyer (info@chrishoyer.de)
 #   Stand: 10.01.2020
 #############################################################################
+import controltheory_toolbox as ctrl
+import basic_toolbox as basic
 
 import numpy as np
 import sympy
 import scipy as sp
-from scipy import signal
+import matplotlib.pyplot as plt
 
-import controltheory_toolbox as ctrl
 
 #############################################################################
 ###                 Bi_2Nodes_Lap_Freq
 #############################################################################
-def Bi_2Nodes_Lap_Freq(last_state, delay, G_Gain, freq0_div,
+def Bi_2Nodes_Freq_Stab(last_state, delay, G_Gain, freq0_div,
                        INV = False, phaseshift=0, delay_phase = True, substitute = True,
                        calc_stability = True, GTF_FF = 0, GTF_FB = 0, variable='s',
-                       coupling_function= "sawtooth", 
+                       Invert_FF = False, coupling_function= "sawtooth", 
                        coupling_scale=0.5, coupling_offset=0):
 #############################################################################    
     """
@@ -104,6 +107,10 @@ def Bi_2Nodes_Lap_Freq(last_state, delay, G_Gain, freq0_div,
         # phase difference, sign
         ddt = np.sign(freq0 - last_state[0])
         
+        # phase shift or inversion in feed forward
+        if INV or Invert_FF:
+            ddt = ddt * -1
+           
         # Generate transfer function dependcy on phase difference
         GTF_FF_Delay = GTF_FF * ddt
         G_TF = GTF_FF_Delay / (1+ GTF_FF_Delay * GTF_FB)
@@ -152,3 +159,116 @@ def Bi_2Nodes_Lap_Freq(last_state, delay, G_Gain, freq0_div,
     return next_state
 
 #############################################################################  
+    
+
+#############################################################################
+###                 Different Prototype Routines
+#############################################################################
+    
+#############################################################################
+###                 3th Generation, Homogen PCB V1.1
+#############################################################################
+    
+def Model_3thGen_V1_1_homogen(phase_start=0, phase_end=2, phase_points=1e3,
+                              invert=False, plot=False):
+    #############################################################################
+    #           System Setup - Model
+    #############################################################################
+    # laplace variable
+    s = sympy.Symbol('s', positive=True)
+    
+    # Sensitivity of the VCO [Hz/V]
+    K_VCO = 757e6
+    
+    # Sensitivity of the PD [V/rad]
+    K_PD = 0.8/(1*np.pi)
+
+    # Divider
+    N = 16*32
+    
+    # Loop Filter
+    f_LF = 1e6
+    K_LF = 1/( 1 + (s * 1/(2*np.pi*f_LF) ))
+    K_LF = 1
+        
+    # open loop gain
+    G_OL = K_PD * 2 * np.pi * K_VCO *  1/N
+    
+    # feedforward and feedback transfer functions
+    GTF_FF = K_PD * K_LF * 2 * np.pi * K_VCO * 1/s
+    GTF_FB = 1/N
+    
+    # Invert FF (DiffSe: 180, Adder: 180, Offset:180)
+    invert_ff = True
+
+    # Center frequency of the System
+    freq_0 = 24.25e9
+    
+    #############################################################################
+    #           Two Coupled Nodes, Calculate Global Network Frequency
+    #############################################################################
+        
+    # define phase range
+    delay_phase = np.linspace(phase_start, phase_end, phase_points)
+    
+    # initial value
+    freq_init = [freq_0/N, freq_0/N]
+    
+    #############################################################################
+    
+    # solving variable
+    freq_out = []
+    freq_out.append(freq_init)
+    
+    # solve iterative
+    for delay in delay_phase:
+        freq_out.append(Bi_2Nodes_Freq_Stab(freq_out[-1], delay*np.pi,
+                                           G_OL, freq_0/N, 
+                                           GTF_FF = GTF_FF, GTF_FB=GTF_FB,
+                                           INV = invert,
+                                           variable=s, Invert_FF=invert_ff, 
+                                           coupling_function="sawtooth"))
+    
+    # Output Format as Array/Matrix and delete init value
+    freq_out.pop(0)
+    freq_out = np.asarray(freq_out)
+    
+    # extract data from node A
+    node_A_model = freq_out[:,0]
+    node_A_tau_model = freq_out[:,2]
+
+    # find max. pol Value
+    max_real_pol = [np.max(np.real(item)) for item in list(freq_out[:,4])]
+
+    #############################################################################
+    #           Plot Global Frequency
+    #############################################################################
+    if plot:    
+    
+        # plot results
+        Xlabel_time = [r'Delay $\tau_\mathrm{AB}$', 's']
+        Xlabel_phase = [r'Phase Difference $\varphi_\mathrm{AB}$', r'$\pi$']
+    
+        Ylabel = [r'Network Frequency $f_\mathrm{NET}$', 'Hz']
+    
+        plot1 = [[delay_phase, node_A_model, r'Node A ($f_\mathrm{OUT}^\mathrm{A}$)']]
+        
+        plot1A = [[delay_phase, max_real_pol, r'Node A Pol', 'linestyle=--']]
+    
+        plot2 = [[node_A_tau_model, node_A_model, r'Node A ($f_\mathrm{OUT}^\mathrm{A}$)']]
+    
+    
+        # Generate Plot
+        plt.figure(figsize=(10,8))
+        ax1 = plt.subplot(311)
+        ax1a = ax1.twinx() 
+        
+        basic.Linear_Plot(ax1, plot1, Xlabel_phase, Ylabel, LegendLoc=0) 
+        basic.Linear_Plot(ax1a, plot1A, Xlabel_phase, Ylabel,TwinX=ax1, LegendLoc=0)  
+        
+        ax2 = plt.subplot(312)
+        basic.Linear_Plot(ax2, plot2, Xlabel_time, Ylabel, LegendLoc=0)
+
+    #############################################################################    
+    
+    return [delay_phase, node_A_tau_model, node_A_model, max_real_pol]
