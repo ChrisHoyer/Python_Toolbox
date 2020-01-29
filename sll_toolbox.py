@@ -9,15 +9,19 @@
 #############################################################################
 
 import numpy as np
+import sympy
 import scipy as sp
 from scipy import signal
+
+import controltheory_toolbox as ctrl
 
 #############################################################################
 ###                 Bi_2Nodes_Lap_Freq
 #############################################################################
-def Bi_2Nodes_Lap_Freq(last_state, delay, GA_OL, freq0A_div,
-                       GB_OL = 0.0, freq0B_div = 0.0, INV = True, shift=0,
-                       delay_phase = True, coupling_function= "sawthooth", 
+def Bi_2Nodes_Lap_Freq(last_state, delay, G_Gain, freq0_div,
+                       INV = False, phaseshift=0, delay_phase = True, substitute = True,
+                       calc_stability = True, GTF_FF = 0, GTF_FB = 0, variable='s',
+                       coupling_function= "sawtooth", 
                        coupling_scale=0.5, coupling_offset=0):
 #############################################################################    
     """
@@ -29,16 +33,15 @@ def Bi_2Nodes_Lap_Freq(last_state, delay, GA_OL, freq0A_div,
     =====================  =============================================:
     last_state              last state from (as tuple!)
     delay                   current delay value
-    GA_OL                   open loop transfer function gain node A
-    GB_OL                   (optionally) open loop transfer function gain node B
-    freq0A_div              divided center frequency node A
-    freq0B_div              (optionally) divided center frequency node B
-    phaseoffset_A           (optionally) phase offset related to node A
-    phaseoffset_B           (optionally) phase offset related to node B
+    GA_OL                   open loop transfer function (with laplace variable)
+    freq0A_div              divided center frequency
+    phaseshift              (optionally) phase offset related 
     delay_phase             (optionally) delay in phase in rad (N*pi)
-    coupling_function       (optionally) PD coupling function (XOR=sawthooth, Mixer=cos)
+    coupling_function       (optionally) PD coupling function (XOR=sawtooth, Mixer=cos)
     coupling_scale          (optionally) rescale of PD coupling function output
-    coupling_offset         (optionally) offset of PD coupling function output    
+    coupling_offset         (optionally) offset of PD coupling function output 
+    calc_stability          (optionally) calculate stability of the plots
+    substitute              (optionally) sympy is better without numerics
     
     return type
        next_state and time delay as tuple [x0, x1, tau0, tau1]
@@ -50,19 +53,9 @@ def Bi_2Nodes_Lap_Freq(last_state, delay, GA_OL, freq0A_div,
 
     """
 #############################################################################   
-    
-    # heterogeneous or homogeneous case
-    if GB_OL == 0.0:
-        GB_OL = GA_OL
-    
-    if freq0B_div == 0.0:
-        freq0B_div = freq0A_div
-        
-    # Consider a frequency difference
-    delta_freq0 = np.abs(freq0B_div - freq0A_div)
-    mean_freq0 = np.mean([freq0B_div,freq0A_div])
-    phaselag = 0.25*np.pi
-    
+
+    # return variable
+    next_state = []
     
     # delay format
     if delay_phase:
@@ -76,11 +69,11 @@ def Bi_2Nodes_Lap_Freq(last_state, delay, GA_OL, freq0A_div,
     
 
     # Calculate phase difference based on delay in radian
-    phase_difference0 = last_state[0] - tau_phase0 - last_state[1] - (INV*np.pi) - shift
-    phase_difference1 = last_state[1] - tau_phase1 - last_state[0] - (INV*np.pi) - shift
+    phase_difference0 = last_state[0] + tau_phase0 - last_state[1] - (INV*np.pi) - phaseshift
+    phase_difference1 = last_state[1] + tau_phase1 - last_state[0] - (INV*np.pi) - phaseshift
  
 
-    if coupling_function == "sawthooth":
+    if coupling_function == "sawtooth":
         
         # Calculate Sawthooth function        
         delta_phase0 = sp.signal.sawtooth(phase_difference0, width=0.5)
@@ -102,15 +95,47 @@ def Bi_2Nodes_Lap_Freq(last_state, delay, GA_OL, freq0A_div,
     delta_phase1 = coupling_scale*(delta_phase1 + coupling_offset)
     
     # calculate global frequency
-    freq0 = GA_OL * delta_phase0 + freq0A_div
-    freq1 = GB_OL * delta_phase1 + freq0B_div
+    freq0 = G_Gain * delta_phase0 + freq0_div
+    freq1 = G_Gain * delta_phase1 + freq0_div
+  
+    # calculate stability of network frequency
+    if calc_stability:
+        
+        # phase difference, sign
+        ddt = np.sign(freq0 - last_state[0])
+        
+        # Generate transfer function dependcy on phase difference
+        GTF_FF_Delay = GTF_FF * ddt
+        G_TF = GTF_FF_Delay / (1+ GTF_FF_Delay * GTF_FB)
+        
+        # substitue
+        [G_TF, Mapping] = ctrl.Substitute_Datatype(G_TF, datatype="Float")   
     
+        # Calculate Poles and Zeros
+        G_TF = sympy.simplify(G_TF)
+        nom, denom = sympy.fraction(G_TF)
+        poles = sympy.roots(denom, variable) 
+        zeros = sympy.roots(nom, variable)
+        
+        # Resubstitute and rearrange poles
+        value = []
+        for key in poles.keys():
+            resub = ctrl.ReSubstitute_Datatype(key, Mapping)
+            # convert to complex number
+            value.append(complex(resub.evalf()))  
+        poles = value
+ 
+        # Resubstitute and rearrange poles
+        value = []
+        for key in zeros.keys():
+            resub = ctrl.ReSubstitute_Datatype(key, Mapping)
+            # convert to complex number
+            value.append(complex(resub.evalf()))  
+        zeros = value       
+        
     # calculate time delay
     tau0 = delay/(2*np.pi*freq0)
-    tau1 = delay/(2*np.pi*freq1) 
-    
-    # return variable
-    next_state = []
+    tau1 = delay/(2*np.pi*freq1)
     
     # Steady State Phase Model (Freq) [x0, x1]
     next_state.append(freq0)
@@ -119,6 +144,10 @@ def Bi_2Nodes_Lap_Freq(last_state, delay, GA_OL, freq0A_div,
     # Steady State Phase Model (Delay) [tau0, tau1]
     next_state.append(tau0)
     next_state.append(tau1)
+    
+    if calc_stability:
+        next_state.append(poles)
+        next_state.append(zeros)
             
     return next_state
 
