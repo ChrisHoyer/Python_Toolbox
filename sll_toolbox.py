@@ -14,12 +14,15 @@ import basic_toolbox as basic
 
 import numpy as np
 import sympy
+
 import scipy as sp
+from scipy import signal
+
 import matplotlib.pyplot as plt
 
 
 #############################################################################
-###                 Bi_2Nodes_Lap_Freq
+###                 Bi_2Nodes_Freq_Stab
 #############################################################################
 def Bi_2Nodes_Freq_Stab(last_state, delay, G_Gain, freq0_div,
                        INV = False, phaseshift=0, delay_phase = True, substitute = True,
@@ -72,22 +75,28 @@ def Bi_2Nodes_Freq_Stab(last_state, delay, G_Gain, freq0_div,
     
 
     # Calculate phase difference based on delay in radian
-    phase_difference0 = last_state[0] + tau_phase0 - last_state[1] - (INV*np.pi) - phaseshift
-    phase_difference1 = last_state[1] + tau_phase1 - last_state[0] - (INV*np.pi) - phaseshift
+    phase_difference0 = last_state[0] + tau_phase0 - last_state[1]
+    phase_difference1 = last_state[1] + tau_phase1 - last_state[0]
  
+    # Add Invertion and Phaseshifts (Represents varphi_const), which is equal
+    phase_difference0 = phase_difference0  - (INV*np.pi) - phaseshift
+    phase_difference1 = phase_difference1  - (INV*np.pi) - phaseshift
 
+    # coupling function, XOR
     if coupling_function == "sawtooth":
         
         # Calculate Sawthooth function        
         delta_phase0 = sp.signal.sawtooth(phase_difference0, width=0.5)
         delta_phase1 = sp.signal.sawtooth(phase_difference1, width=0.5)
 
+    # coupling function, MIXER
     elif coupling_function == "cos":
         
         # Calculate Sawthooth function        
         delta_phase0 = np.cos(phase_difference0)
         delta_phase1 = np.cos(phase_difference1)
-        
+    
+    # no coupling function, XOR    
     else:
         # no coupling
         delta_phase0 = phase_difference0
@@ -108,7 +117,7 @@ def Bi_2Nodes_Freq_Stab(last_state, delay, G_Gain, freq0_div,
         ddt = np.sign(freq0 - last_state[0])
         
         # phase shift or inversion in feed forward
-        if INV or Invert_FF:
+        if Invert_FF:
             ddt = ddt * -1
            
         # Generate transfer function dependcy on phase difference
@@ -170,7 +179,8 @@ def Bi_2Nodes_Freq_Stab(last_state, delay, G_Gain, freq0_div,
 #############################################################################
     
 def Model_3thGen_V1_1_homogen(phase_start=0, phase_end=2, phase_points=1e3,
-                              invert=False, plot=False):
+                              Div_N=16*32, VCO_freq0 = 24.25e9,  invert=False,
+                              invert_ff=True, plot=False):
     #############################################################################
     #           System Setup - Model
     #############################################################################
@@ -179,12 +189,14 @@ def Model_3thGen_V1_1_homogen(phase_start=0, phase_end=2, phase_points=1e3,
     
     # Sensitivity of the VCO [Hz/V]
     K_VCO = 757e6
+    K_VCO = 3e9*1/(2*np.pi)
     
     # Sensitivity of the PD [V/rad]
     K_PD = 0.8/(1*np.pi)
-
+    K_PD = 1
+    
     # Divider
-    N = 16*32
+    N = Div_N
     
     # Loop Filter
     f_LF = 1e6
@@ -199,10 +211,13 @@ def Model_3thGen_V1_1_homogen(phase_start=0, phase_end=2, phase_points=1e3,
     GTF_FB = 1/N
     
     # Invert FF (DiffSe: 180, Adder: 180, Offset:180)
-    invert_ff = True
+    #invert_ff = True
 
     # Center frequency of the System
-    freq_0 = 24.25e9
+    freq_0 = VCO_freq0
+    
+    #print loop gain
+    print("Loop Gain: "  + str(G_OL/1e6) + "MHz/pi")
     
     #############################################################################
     #           Two Coupled Nodes, Calculate Global Network Frequency

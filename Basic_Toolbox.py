@@ -712,7 +712,8 @@ def Linearization_Point(XData, YData, XPoint, Tolerance, num=100,
 ###         Generate Plot for Time Domain / Linear
 #############################################################################
 def Linear_Plot(ax, Plot_list, X_label, Y_label, Legend=True, LegendLoc=0,
-                TwinX=None, Ylim=None, XAutolim=True, fontsize=12, BlackWhite=False,
+                TwinX=None, Ylim=None, XAutolim=True, fontsize=12, TicksEng=True,
+                fontsize_label=12, yaxis_pad=0, xaxis_pad=0, BlackWhite=False,
                 **kwargs):
 #############################################################################  
     """
@@ -730,6 +731,9 @@ def Linear_Plot(ax, Plot_list, X_label, Y_label, Legend=True, LegendLoc=0,
     Ylim                    (option) set Y-Axis limits
     Xlim                    (option) set automatically X Limit
     fontsize                (option) Fontsize of this Plot 
+    fontsize_label          (option) Fontsize of the axis labels
+    yaxis_pad               (option) move label to y-axis (padding)
+    xaxis_pad               (option) move label to x-axis (padding)    
     BlackWhite              (option) Use Black and White Preset
     
     return type
@@ -782,10 +786,13 @@ def Linear_Plot(ax, Plot_list, X_label, Y_label, Legend=True, LegendLoc=0,
         ax.plot(x_plot, y_plot, label=plot[2], **userargs)
 
     # label
-    ax.set_ylabel(Y_label[0])
-    ax.yaxis.set_major_formatter(tck.EngFormatter(unit=Y_label[1]))
-    ax.set_xlabel(X_label[0])
-    ax.xaxis.set_major_formatter(tck.EngFormatter(unit=X_label[1]))
+    ax.set_ylabel(Y_label[0], labelpad=yaxis_pad)
+    ax.set_xlabel(X_label[0], labelpad=xaxis_pad)
+    
+    # ticks in engineering formatter
+    if TicksEng:
+        ax.yaxis.set_major_formatter(tck.EngFormatter(unit=Y_label[1]))
+        ax.xaxis.set_major_formatter(tck.EngFormatter(unit=X_label[1]))
     
     # xlimit
     if XAutolim:
@@ -812,10 +819,14 @@ def Linear_Plot(ax, Plot_list, X_label, Y_label, Legend=True, LegendLoc=0,
     if Ylim:
         ax.set_ylim([Ylim[0],Ylim[1]])
         
-    # set font sizes
+    # set font sizes (all)
     for item in ([ax.title, ax.xaxis.label, ax.yaxis.label] +
              ax.get_xticklabels() + ax.get_yticklabels()):
         item.set_fontsize(fontsize)
+    
+    # set font size label
+    for item in ([ax.xaxis.label, ax.yaxis.label]):
+        item.set_fontsize(fontsize_label)
     
         # Align both Y Axis to grid
     if not(TwinX==None) and type(TwinX) == type(ax) and Legend:
