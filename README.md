@@ -36,6 +36,7 @@ Major focus on plotting:
 - FrequencyFiltering: Frequency Filtering of Data
 - String2List: Generates a List out of a csv with one line
 - XYZ_Plot: generates 3D Plot (X,Y,Z) for i.e. waterfall diagrams
+- Spectrum_Minimizer: Generates Mean and Max Spectrum from Dataset
 
 ### ControlTheory_Toolbox
 Major fucus on control theorie and plotting
@@ -43,6 +44,7 @@ Major fucus on control theorie and plotting
  - Extract_Sympy_1Var: Substitutes Sympy and generates numeric solution
  - BodePlot_FBCTRL: Generate BodePlot out of symbolic feedback transfer function
  - BodePlot: Generate BodePlot out of symbolic transfer function
+ - ZeroPole_Plot: Generate ZeroPole Plot
  - StepResponse: Generate Step Response with Heaviside Fct from symbolic transfer function
  - Substitute_Datatype: Substitute constant values with symboles
  - ReSubstitute_Datatype: Resubstitute constant values with symboles

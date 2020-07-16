@@ -24,11 +24,22 @@
 #############################################################################
 
 from scipy.optimize import curve_fit
+from cycler import cycler
+
 import matplotlib.ticker as tck
 import matplotlib.pyplot as plt
 import numpy as np
 import csv
 import re
+
+
+#############################################################################
+###         Global Variables
+#############################################################################
+
+# Black and White Style
+monochrome = (cycler('color', ['k']) * cycler('linestyle', ['-', ':', '--']) * cycler('marker', ['^', '.','v']))
+
 
 #############################################################################
 ###         Import CSV File to a dictionary
@@ -57,13 +68,13 @@ def CSV2Dict(csv_file, delimiter=';', complexdelimiter='/',
        
     Example:
         
-        import PCB_Toolbox as pcb
+        import basic_toolbox as basic
         
         # import csv
         file = 'test.csv'
         
         # calculate
-        Data = pcb.CSV2Dict(file)
+        Data = basic.CSV2Dict(file)
          
    
     """
@@ -199,11 +210,25 @@ def CSV2Dict(csv_file, delimiter=';', complexdelimiter='/',
             # name new block
             if NewBlockStart:
                 
+                # reset flag
+                NewBlockStart = False
+                
                 # Any external names defined?
                 if not blockkeys:
                     block_name = block_count
                 else:
                     block_name = blockkeys[block_count]
+                    
+                # Insert readed Block and start new block
+                if len(Block) > 0:
+                    
+                    # insert into dataset
+                    Data[block_name] = Block
+                    block_count = block_count + 1
+                    
+                    # delete old Block
+                    block_line = 0
+                    Block = {}
             
             # starting new block
             if block_line == 0:
@@ -289,6 +314,11 @@ def CSV2Dict(csv_file, delimiter=';', complexdelimiter='/',
         if block_count == 0:
             return Block
         else:
+            
+            # add last block, if not empty
+            if len(Block) > 0:
+                Data[block_name] = Block
+                
             return Data
 
 ############################################################################# 
@@ -312,13 +342,13 @@ def CSV2Area(coordinate_file, draw_polygon=False, delimiter=';', **kwargs):
        
     Example:
         
-        import PCB_Toolbox as pcb
+        import basic_toolbox as basic
         
         # import csv
         file = 'test.csv'
         
         # calculate and print
-        Area = pcb.CSV2Area(file, draw_polygon=True)
+        Area = basic.CSV2Area(file, draw_polygon=True)
         
         print('This Polygon has an Area of ' + str(Area) + ' mm2')      
    
@@ -376,7 +406,7 @@ def FitFct_Exp(XData, YData, UsePoints=None, plot=False, **kwargs):
        
     Example:
         
-        import PCB_Toolbox as pcb
+        import basic_toolbox as basic
         
         # generate Dataset
         XData = ...
@@ -384,7 +414,7 @@ def FitFct_Exp(XData, YData, UsePoints=None, plot=False, **kwargs):
         
         
         # Find Point
-        [a,b] = pcb.FindPoint_FitFct(XData, YData,)
+        [a,b] = basic.FindPoint_FitFct(XData, YData,)
            
    
     """
@@ -467,7 +497,7 @@ def FindPoint_FitFct(XData, YData, XPoint, Approx_Range, plot=False, **kwargs):
        
     Example:
         
-        import PCB_Toolbox as pcb
+        import basic_toolbox as basic
         
         # generate Dataset
         XData = ...
@@ -477,7 +507,7 @@ def FindPoint_FitFct(XData, YData, XPoint, Approx_Range, plot=False, **kwargs):
         
         
         # Find Point
-        YPoint = pcb.FindPoint_FitFct(XData, 
+        YPoint = basic.FindPoint_FitFct(XData, 
                                       YData, 
                                       XPoint, 5)
            
@@ -549,13 +579,13 @@ def Linearization_Point(XData, YData, XPoint, Tolerance, num=100,
        
     Example:
         
-        import PCB_Toolbox as pcb
+        import basic_toolbox as basic
         
         # import csv
         file = 'test.csv'
         
         # calculate and print
-        Area = pcb.CSV2Area(file, draw_polygon=True)
+        Area = basic.CSV2Area(file, draw_polygon=True)
         
         print('This Polygon has an Area of ' + str(Area) + ' mm2')      
    
@@ -712,8 +742,9 @@ def Linearization_Point(XData, YData, XPoint, Tolerance, num=100,
 ###         Generate Plot for Time Domain / Linear
 #############################################################################
 def Linear_Plot(ax, Plot_list, X_label, Y_label, Legend=True, LegendLoc=0,
-                TwinX=None, Ylim=None, XAutolim=True, fontsize=12, TicksEng=True,
-                fontsize_label=12, yaxis_pad=0, xaxis_pad=0, BlackWhite=False,
+                TwinX=None, Ylim=None, XAutolim=True, fontsize=14, TicksEng=True,
+                fontsize_label=14, yaxis_pad=0, xaxis_pad=0, BlackWhite=False,
+                grid = True,
                 **kwargs):
 #############################################################################  
     """
@@ -735,13 +766,14 @@ def Linear_Plot(ax, Plot_list, X_label, Y_label, Legend=True, LegendLoc=0,
     yaxis_pad               (option) move label to y-axis (padding)
     xaxis_pad               (option) move label to x-axis (padding)    
     BlackWhite              (option) Use Black and White Preset
+    grid                    (option) Use grid
     
     return type
        None  (writes directly into axis)
       
     Example:
         
-        import PCB_Toolbox as pcb
+        import basic_toolbox as basic
         
         ...
         
@@ -753,11 +785,17 @@ def Linear_Plot(ax, Plot_list, X_label, Y_label, Legend=True, LegendLoc=0,
         # Generate Plot
         plt.figure(figsize=(7.5,12))
         ax1 = plt.subplot(111)
-        pcb.Linear_Plot(ax1, Plot, Xlabel, Ylabel)  
+        basic.Linear_Plot(ax1, Plot, Xlabel, Ylabel)  
         plt.show()
    
     """        
-#############################################################################      
+#############################################################################   
+
+    # BlackWhite Default Settings
+    if BlackWhite:
+        ax.set_prop_cycle(monochrome)
+        
+        
     for index in range(len(Plot_list)):
         
         plot = Plot_list[index]
@@ -773,18 +811,19 @@ def Linear_Plot(ax, Plot_list, X_label, Y_label, Legend=True, LegendLoc=0,
         
         # emtpy argument list
         userargs = {}
-        
-        # BlackWhite Default Settings
-        if BlackWhite:
-            linestyles = ['-', '--', '-.', ':']
-            plot[3] = str("color=k, linestyle=" + linestyles[index])
-        
+                
         # insert plotting arguments
         if len(plot) >= 4:
             userargs = dict(e.split('=') for e in plot[3].split(', '))
             
+        # Check if userargs have only numberic values
+        for userarg in userargs:
+            if userargs[userarg].isdigit():
+                userargs[userarg] = int(userargs[userarg])
+            
+            
         ax.plot(x_plot, y_plot, label=plot[2], **userargs)
-
+        
     # label
     ax.set_ylabel(Y_label[0], labelpad=yaxis_pad)
     ax.set_xlabel(X_label[0], labelpad=xaxis_pad)
@@ -845,13 +884,14 @@ def Linear_Plot(ax, Plot_list, X_label, Y_label, Legend=True, LegendLoc=0,
         
         if Legend:
             # legend
-            ax.legend(framealpha=1, loc=LegendLoc)
+            ax.legend(framealpha=1, loc=LegendLoc, fontsize=fontsize)
     
         # Generate new Grid
-        ax.minorticks_on()
-        ax.grid(True, which='major')
-        ax.grid(which='minor', alpha=1, linestyle=':', linewidth=1)
-        ax.grid(which='major', alpha=1, linewidth=1.2)    
+        if grid:
+            ax.minorticks_on()
+            ax.grid(True, which='major')
+            ax.grid(which='minor', alpha=1, linestyle=':', linewidth=1)
+            ax.grid(which='major', alpha=1, linewidth=1.2)   
         
     #retrn
     return ax
@@ -860,7 +900,7 @@ def Linear_Plot(ax, Plot_list, X_label, Y_label, Legend=True, LegendLoc=0,
 ###         Generate Plot for Time Domain / Linear
 #############################################################################
 def Box_Plot(ax, XDataset , YDataset, X_label, Y_label, boxwidth=0,
-             Legend="", LegendLoc=0,
+             Legend="", LegendLoc=0, fontsize_label=12, yaxis_pad=0, xaxis_pad=0,
              Ylim=None, XAutolim=False, grid=False, fontsize=12, **kwargs):
 #############################################################################  
     """
@@ -879,6 +919,9 @@ def Box_Plot(ax, XDataset , YDataset, X_label, Y_label, boxwidth=0,
     Ylim                    (option) set Y-Axis limits
     grid                    (option) enable grid
     fontsize                (option) Fontsize of this Plot 
+    fontsize_label          (option) Fontsize of the axis labels
+    yaxis_pad               (option) move label to y-axis (padding)
+    xaxis_pad               (option) move label to x-axis (padding)    
  
     return type
        None  (writes directly into axis)
@@ -898,7 +941,7 @@ def Box_Plot(ax, XDataset , YDataset, X_label, Y_label, boxwidth=0,
         # Generate Plot
         plt.figure(figsize=(10,5))
         ax1 = plt.subplot(111)
-        pcb.Linear_Plot(ax1, xdata, Xdata, Xlabel, Ylabel)  
+        basic.Linear_Plot(ax1, xdata, Xdata, Xlabel, Ylabel)  
         plt.show()
    
     """        
@@ -919,9 +962,9 @@ def Box_Plot(ax, XDataset , YDataset, X_label, Y_label, boxwidth=0,
     bp = ax.boxplot(YDataset, positions=XDataset, widths=boxwidth, **kwargs)
       
     # label
-    ax.set_ylabel(Y_label[0])
+    ax.set_ylabel(Y_label[0], labelpad=yaxis_pad)
     ax.yaxis.set_major_formatter(tck.EngFormatter(unit=Y_label[1]))
-    ax.set_xlabel(X_label[0])
+    ax.set_xlabel(X_label[0], labelpad=xaxis_pad)
     ax.xaxis.set_major_formatter(tck.EngFormatter(unit=X_label[1]))
         
     # xlimit    
@@ -944,6 +987,15 @@ def Box_Plot(ax, XDataset , YDataset, X_label, Y_label, boxwidth=0,
         ax.grid(which='major', alpha=1, linewidth=1.2) 
     else:
         ax.set_xticks(xticks_old)
+        
+    # set font sizes (all)
+    for item in ([ax.title, ax.xaxis.label, ax.yaxis.label] +
+             ax.get_xticklabels() + ax.get_yticklabels()):
+        item.set_fontsize(fontsize)
+    
+    # set font size label
+    for item in ([ax.xaxis.label, ax.yaxis.label]):
+        item.set_fontsize(fontsize_label)
         
     # xlimit
     if XAutolim:
@@ -972,7 +1024,7 @@ def Box_Plot(ax, XDataset , YDataset, X_label, Y_label, boxwidth=0,
 
     
     #retrn
-    return ax
+    return [ax, bp]
 
 #############################################################################
 ###         Generate Plot for Frequency Domain / SemilogX
@@ -1004,7 +1056,7 @@ def SemiLogX_Plot(ax, Plot_list, X_label, Y_label, Legend=True, LegendLoc=0,
        
     Example:
         
-        import PCB_Toolbox as pcb
+        import basic_toolbox as basic
         
         ...
         
@@ -1016,13 +1068,16 @@ def SemiLogX_Plot(ax, Plot_list, X_label, Y_label, Legend=True, LegendLoc=0,
         # Generate Plot
         plt.figure(figsize=(7.5,12))
         ax1 = plt.subplot(111)
-        pcb.Linear_Plot(ax1, Plot, X_label, Ylabel)  
+        basic.Linear_Plot(ax1, Plot, X_label, Ylabel)  
         plt.show()
    
     """    
 
 #############################################################################      
- 
+    # BlackWhite Default Settings
+    if BlackWhite:
+        ax.set_prop_cycle(monochrome)
+        
     for index in range(len(Plot_list)):
         
         # current plot
@@ -1039,19 +1094,19 @@ def SemiLogX_Plot(ax, Plot_list, X_label, Y_label, Legend=True, LegendLoc=0,
         
         # emtpy argument list
         userargs = {}
-        
-        # BlackWhite Default Settings
-        if BlackWhite:
-            linestyles = ['-', '--', '-.', ':']
-            plot[3] = str("color=k, linestyle=" + linestyles[index])
-        
+                
         # insert plotting arguments
         if len(plot) >= 4:
             userargs = dict(e.split('=') for e in plot[3].split(', '))
-
+            
+        # Check if userargs have only numberic values
+        for userarg in userargs:
+            if userargs[userarg].isdigit():
+                userargs[userarg] = float(userargs[userarg])
+                
         # plot
         ax.semilogx(x_plot, y_plot, label=plot[2], **userargs)     
-       
+      
     # label
     ax.set_ylabel(Y_label[0])
     ax.yaxis.set_major_formatter(tck.EngFormatter(unit=Y_label[1]))
@@ -1126,7 +1181,7 @@ def Vline_Plot(ax, xValue, xLabel, yDistance=0.25, yPos='up', color='r',
        
     Example:
         
-        import PCB_Toolbox as pcb
+        import basic_toolbox as basic
 
    
     """    
@@ -1182,7 +1237,7 @@ def Hline_Plot(ax, yValue, yLabel, xDistance=0.4, xPos='right', color='r',
        
     Example:
         
-        import PCB_Toolbox as pcb
+        import basic_toolbox as basic
 
    
     """    
@@ -1323,7 +1378,7 @@ def FindPoint_NextValue(XData, YData, XPoint, plot=False, **kwargs):
        
     Example:
         
-        import PCB_Toolbox as pcb
+        import basic_toolbox as basic
         
         # generate Dataset
         XData = ...
@@ -1333,7 +1388,7 @@ def FindPoint_NextValue(XData, YData, XPoint, plot=False, **kwargs):
         
         
         # Find Point
-        YPoint = pcb.FindPoint_NextValue(XData, YData, XPoint)
+        YPoint = basic.FindPoint_NextValue(XData, YData, XPoint)
            
     """
 #############################################################################     
@@ -1370,7 +1425,7 @@ def Digitalize_Data(data, clock, edge_trigger = 'rising',
        
     Example:
         
-        import PCB_Toolbox as pcb
+        import basic_toolbox as basic
         
         # generate Dataset
         data = ...
@@ -1378,7 +1433,7 @@ def Digitalize_Data(data, clock, edge_trigger = 'rising',
                 
         
         # Find Point
-        stream = pcb.Digitalize_Data(data, clock)
+        stream = basic.Digitalize_Data(data, clock)
            
     """   
 #############################################################################   
@@ -1491,13 +1546,13 @@ def CMPLX2Format (complex_data, voltage=False):
        
     Example:
         
-        import PCB_Toolbox as pcb
+        import basic_toolbox as basic
         
         # generate Dataset
         data = ...               
         
         # Generate multiple formats 
-        data = pcb.CMPLX2Polar(data)
+        data = basic.CMPLX2Polar(data)
            
     """   
 #############################################################################  
@@ -1540,14 +1595,14 @@ def Average(XData, YData, Points=200):
        
     Example:
         
-        import PCB_Toolbox as pcb
+        import basic_toolbox as basic
         
         # generate Dataset
         dataY = ...               
         dataX = ...       
           
         # Generate multiple formats 
-        dataAVG = pcb.Average(dataY, dataX)
+        dataAVG = basic.Average(dataY, dataX)
            
     """   
 ############################################################################# 
@@ -1588,13 +1643,13 @@ def FrequencyFiltering(Data, pass_start, pass_end, filtertype="Bandstop", plot=F
        
     Example:
         
-        import PCB_Toolbox as pcb
+        import basic_toolbox as basic
         
         # generate Dataset
         file = ...  
              
         # Generate multiple formats 
-        list = pcb.String2List(file)
+        list = basic.String2List(file)
            
     """   
 #############################################################################    
@@ -1654,13 +1709,13 @@ def String2List(file, delimiter=','):
        
     Example:
         
-        import PCB_Toolbox as pcb
+        import basic_toolbox as basic
         
         # generate Dataset
         file = ...  
              
         # Generate multiple formats 
-        list = pcb.String2List(file)
+        list = basic.String2List(file)
            
     """   
 ############################################################################# 
@@ -1688,7 +1743,7 @@ def String2List(file, delimiter=','):
 #############################################################################
 ##          XYZ-Plot
 #############################################################################
-def XYZ_Plot(raw_data, xname="Time[s]", yname="Freq[Hz]", zname="Mag[dBm]"):
+def XYZ_Plot(raw_data, xname="Time[s]", yname="Freq[Hz]", zname="Mag[dBm]", nan=float("NaN")):
 ############################################################################# 
     """
     Average of YData, both data arrays will be splitted into eqal chunks
@@ -1747,9 +1802,144 @@ def XYZ_Plot(raw_data, xname="Time[s]", yname="Freq[Hz]", zname="Mag[dBm]"):
             try:
                 z_value = data_xyz[grid_x[index_x]][grid_y[index_y]]
             except:
-                z_value = float("NaN")
+                z_value = nan
                 
             grid_xyz[index_y][index_x] = z_value
         
 
     return [grid_x, grid_y, grid_xyz]   
+
+
+#############################################################################
+##          Spectrum_Minimizer and Average
+#############################################################################
+def Spectrum_Minimizer(Freq_Matrix, Mag_Matrix, nanvalue=-100, minmax=True,
+                       Freqsize=30, Freq_min=0, Freq_max=1, plotall=False,
+                       plotnonlock=False, diff_max_lock=40, plotname=""):
+############################################################################# 
+    """
+    Minimizes Spectrum fror Small Short Plots
+
+    paramters              description
+    =====================  =============================================:
+    Freq_Matrix             Matrix with Frequency Values in Hz
+    Mag_Matrix              Matrix with Magnitue Values in dBm
+    nanvalue                value of NaN
+    minmax                  (optional)
+    
+    return type
+       Freq_New_Array, Maximum_Spectrum, Mean_Spectrum as Dict
+                  
+    """   
+#############################################################################      
+    # find min and max value
+    if minmax == False:
+        Freq_min = np.min(Freq_Matrix)
+        Freq_max = np.max(Freq_Matrix)    
+        
+    # Generate new Freq Axis, equal spacing    
+    Freq_New_Array = np.linspace(Freq_min,Freq_max, Freqsize)
+
+    # length of samples
+    samples = Freq_Matrix.shape[0]
+        
+    # empty resulting matrix with NaN
+    Matrix = np.zeros([samples, Freqsize])
+    Matrix[:] = nanvalue
+
+    # iterate all entries in freq matrix
+    for index_x in range(Freq_Matrix.shape[0]):
+        for index_y in range(Freq_Matrix.shape[1]): 
+            
+            # extract values from given matrix
+            freq = Freq_Matrix[index_x][index_y]
+            mag = Mag_Matrix[index_x][index_y]
+            
+            # matching freq to new matrix
+            match_index = np.argmin(np.abs(Freq_New_Array-freq))
+            
+            if not(Matrix[index_x][match_index] == nanvalue):
+                old_value = Matrix[index_x][match_index]
+                Matrix[index_x][match_index] = np.mean([mag,old_value])
+            else:
+                Matrix[index_x][match_index] = mag
+    
+
+#############################################################################  
+      
+    # Spectrum
+    Maximum_Spectrum = []
+    Minimum_Spectrum = []
+    Mean_Spectrum = []
+    
+    Maximum_onlyValues = []
+    
+    # generate Max and Meal Value
+    for column in Matrix.T:
+        
+        # find all nanvalues from 
+        nanvalue_index = []
+        for index, item in enumerate(column):
+            if item == nanvalue:
+                nanvalue_index.append(index)
+             
+        # remove all nanvalues
+        column = np.delete(column, nanvalue_index)
+        
+        # generate ouput
+        if column.any():
+            Maximum_Spectrum.append(np.max(column))
+            Minimum_Spectrum.append(np.min(column))
+            Maximum_onlyValues.append(np.max(column))
+            Mean_Spectrum.append(np.mean(column))
+            
+        else:
+            Maximum_Spectrum.append(float("NaN"))
+            Minimum_Spectrum.append(float("NaN"))
+            Mean_Spectrum.append(float("NaN"))           
+     
+
+#############################################################################         
+    # generate peak and mean
+    mean_max = np.mean(Maximum_onlyValues)
+    peak_max = np.max(Maximum_onlyValues)
+    
+    # difference
+    diff_max = peak_max-mean_max
+    
+    text = "diff_max: " + str(diff_max)
+    
+    if diff_max < diff_max_lock:
+        lock = False
+    else:
+        lock = True
+    
+#############################################################################  
+    
+    if plotall or (plotnonlock and not(lock)):
+        
+        # plot the data
+        plt.figure(figsize=(6,5))
+        plt.plot(Freq_New_Array, Maximum_Spectrum)
+        plt.plot(Freq_New_Array, Mean_Spectrum)
+        plt.plot(Freq_New_Array, Minimum_Spectrum) 
+        plt.title(plotname)
+        
+        x = np.mean(Freq_New_Array)
+        y = mean_max
+        plt.text(x, y, text, horizontalalignment='center',
+                 verticalalignment='center')
+        
+        plt.grid()
+        plt.show()
+         
+#############################################################################  
+	
+	# Return type
+    return_dict = {}
+    return_dict["Freq[Hz]"] = Freq_New_Array
+    return_dict["Max_Spectrum[dBm]"] = Maximum_Spectrum
+    return_dict["Mean_Spectrum[dBm]"] = Mean_Spectrum
+    return_dict["Lock_Estimation"] = lock
+    
+    return return_dict

@@ -2,6 +2,9 @@
 #
 # - Extract_Sympy_1Var: Substitutes Sympy and generates numeric solution
 # - BodePlot_FBCTRL: Generate BodePlot out of symbolic feedback transfer function
+# - BodePlot: Generate BodePlot out of symbolic transfer function
+# - NyquistPlot: NyquistPlot of sympy transfer function
+# - ZeroPole_Plot: Generate ZeroPole Plot
 # - StepResponse: Generate Step Response with Heaviside Fct from symbolic transfer function
 # - Substitute_Datatype: Substitute constant values with symboles
 # - ReSubstitute_Datatype: Resubstitute constant values with symboles
@@ -13,7 +16,9 @@
 import basic_toolbox as basic
 import matplotlib.pyplot as plt
 import numpy as np
+import scipy as sp
 import sympy
+
 from sympy.integrals import inverse_laplace_transform
 from sympy.parsing.sympy_parser import parse_expr
 
@@ -115,9 +120,10 @@ def Extract_Sympy_1Var(symbolic, eval_range, variable='s', evaluation="lambdify"
 #############################################################################
 #           Generate BodePlot out of symbolic transfer function
 #############################################################################
-def BodePlot_FBCTRL(feedforward, feedback, freq, variable='s', evaluation="lambdify",
+def BodePlot_FBCTRL(feedforward, feedback, freq, variable="", evaluation="lambdify",
                     Add_LoopBW = False, Add_PhaseMargin = True, Add_MaxPhaseMargin = True,
                     PlotBlackWhite = False,
+                    Ylim_dB = [], Ylim_PH = [],
                     Name_LoopBW= r'$f_\mathrm{loop}$ = ',Scale_LoopBW = 1e3,  Unit_LoopBW= 'kHz',
                     Name_PhaseMargin= r'$\varphi_\Delta$ = ', Max_PhaseMargin = -180,
                     Name_OL_dB = r'Open Loop Reference Phase $|\mathrm{G}_\mathrm{OL}|$',
@@ -145,6 +151,8 @@ def BodePlot_FBCTRL(feedforward, feedback, freq, variable='s', evaluation="lambd
     freq                    frequency range of interest
     variable                (optional) laplace variable
     PlotBlackWhite          (optional) plot only in black and white
+    Ylim_dB                 (optional) Y Axis for dB Limits
+    Ylim_PH                 (optional) Y Axis for Phase Limits
     evaluation              (optional) define the used evalutaion function (lambdify|subs)  
     Add_LoopBW              (optional) Insert LoopBandwidth vertical line
     Name_LoopBW             (optional) Name of Loop Bandwidth
@@ -168,7 +176,8 @@ def BodePlot_FBCTRL(feedforward, feedback, freq, variable='s', evaluation="lambd
     """   
  ############################################################################# 
     # Generate Variable
-    variable = sympy.Symbol(variable)
+    if not variable:
+        variable = sympy.Symbol('s', positive=True)
     
     # Frequency Scale to j*w
     omega = 2j*np.pi * freq
@@ -201,8 +210,8 @@ def BodePlot_FBCTRL(feedforward, feedback, freq, variable='s', evaluation="lambd
     ax1 = plt.subplot(211)
     ax2 = plt.subplot(212)   
     
-    basic.SemiLogX_Plot(ax1, plot_mag, Xlabel_freq, Ylabel_dB, BlackWhite=PlotBlackWhite)
-    basic.SemiLogX_Plot(ax2, plot_phase, Xlabel_freq, Ylabel_PH, BlackWhite=PlotBlackWhite)
+    basic.SemiLogX_Plot(ax1, plot_mag, Xlabel_freq, Ylabel_dB, Ylim=Ylim_dB, BlackWhite=PlotBlackWhite)   
+    basic.SemiLogX_Plot(ax2, plot_phase, Xlabel_freq, Ylabel_PH, Ylim=Ylim_PH, BlackWhite=PlotBlackWhite)
     
     # =================================== 
     if Add_LoopBW | Add_PhaseMargin:
@@ -262,9 +271,11 @@ def BodePlot_FBCTRL(feedforward, feedback, freq, variable='s', evaluation="lambd
 #############################################################################
 #           Generate BodePlot out of symbolic transfer function
 #############################################################################
-def BodePlot(systems, evaluation="lambdify", PlotBlackWhite=False, plotphase=True,
-             Xlabel_freq = ['', 'Hz'], Ylabel_dB = ["", 'dB'], Ylabel_PH = ["", '$^\circ$'],
-             fig = plt.figure(figsize=(10,10))):
+def BodePlot(system, freq, fig ,label="", evaluation="lambdify",
+             PlotBlackWhite=False, plotphase=True,
+             Ylim_dB = [], Ylim_PH = [],
+             Xlabel_freq = ['', 'Hz'], Ylabel_dB = ["", 'dB'],
+             Ylabel_PH = ["", '$^\circ$']):
  
 ############################################################################# 
     """
@@ -273,13 +284,17 @@ def BodePlot(systems, evaluation="lambdify", PlotBlackWhite=False, plotphase=Tru
 
     paramters              description
     =====================  =============================================:
-    systems                 symbolic systems transfer function as List
+    system                  symbolic systems transfer function
+    freq                    frequency span
+    fig                     matplot figure
+    Ylim_dB                 (optional) Y Axis for dB Limits
+    Ylim_PH                 (optional) Y Axis for Phase Limits
     evaluation              (optional) define the used evalutaion function (lambdify|subs) 
     PlotBlackWhite          (optional) plot only in black and white
     Xlabel_freq             (optional) Label and Unit of Frequency X-Axis
     Ylabel_dB               (optional) Label and Unit of dB Y-Axis 
     Ylabel_PH               (optional) Label and Unit of phase Y-Axis
-    fig                     (optional) matplot figure
+
     
     return type
        plot
@@ -292,34 +307,20 @@ def BodePlot(systems, evaluation="lambdify", PlotBlackWhite=False, plotphase=Tru
     plot_phase = []
 
     # ===================================     
-    # Iterate all Equations
-    for index in range(len(systems)):
         
-        # get system
-        system = systems[index]
+    # Frequency Scale to j*w
+    omega = 2j*np.pi * freq
         
-        # Frequency Scale to j*w
-        freq = system[0]
-        omega = 2j*np.pi * freq
-        
-        # Generate OpenLoop Transfer Function
-        system_extract = Extract_Sympy_1Var(system[1], omega, evaluation=evaluation)
-        system_extract = basic.CMPLX2Format(system_extract)
+    # Generate OpenLoop Transfer Function
+    system_extract = Extract_Sympy_1Var(system, omega, evaluation=evaluation)
+    system_extract = basic.CMPLX2Format(system_extract)
  
+    # Generate Magnitude Plot Settings
+    plot_mag.append([freq, system_extract['dB'], 'Magnitude' + str(label)])
+            
+    if plotphase:
         # Generate Magnitude Plot Settings
-        plot_mag.append([freq, 
-                         system_extract['dB'],
-                         system[2] + " " + r'$|' + system[3] + r'|$',
-                         system[4]
-                         ])
-        
-        if plotphase:
-            # Generate Magnitude Plot Settings
-            plot_phase.append([freq, 
-                               system_extract['PhaseDeg'],
-                               system[2] + " " + r'$\angle~(' + system[3] + r'(|)$',
-                               system[4]
-                               ]) 
+        plot_phase.append([freq, system_extract['PhaseDeg'], 'Phase'  + str(label)])  
    
     # =================================== 
     # Generate Plot
@@ -331,8 +332,10 @@ def BodePlot(systems, evaluation="lambdify", PlotBlackWhite=False, plotphase=Tru
         fig.add_axes(ax1)
         fig.add_axes(ax2)
          
-        basic.SemiLogX_Plot(ax1, plot_mag, Xlabel_freq, Ylabel_dB, BlackWhite=PlotBlackWhite)
-        basic.SemiLogX_Plot(ax2, plot_phase, Xlabel_freq, Ylabel_PH, BlackWhite=PlotBlackWhite)
+        basic.SemiLogX_Plot(ax1, plot_mag, Xlabel_freq, Ylabel_dB,
+                            Ylim=Ylim_dB, BlackWhite=PlotBlackWhite)
+        basic.SemiLogX_Plot(ax2, plot_phase, Xlabel_freq, Ylabel_PH,
+                            Ylim=Ylim_PH, BlackWhite=PlotBlackWhite)
             
     else:
         ax1 = plt.subplot(111)
@@ -344,6 +347,205 @@ def BodePlot(systems, evaluation="lambdify", PlotBlackWhite=False, plotphase=Tru
     # return plot
     return plt
  
+#############################################################################
+#           Generate BodePlot out of symbolic transfer function
+#############################################################################
+def NyquistPlot(system, freq, fig, label="", evaluation="lambdify",
+                plot=False, PlotBlackWhite=False, unity=False,
+                Legend=True, LegendLoc = 0):
+ 
+############################################################################# 
+    """
+    Generate BodePlot from transfer function
+    
+
+    paramters              description
+    =====================  =============================================:
+    system                  symbolic systems transfer function
+    freq                    frequency span
+    fig                     matplot figure
+    evaluation              (optional) define the used evalutaion function (lambdify|subs) 
+    PlotBlackWhite          (optional) plot only in black and white
+    Legend                  (option) plot legend
+    LegendLoc               (option) legend location
+
+    
+    return type
+       plot
+       
+    """   
+ ############################################################################# 
+
+    # Plot Settings
+    plot_complex = []
+
+    # ===================================     
+        
+    # Frequency Scale to j*w
+    omega = 2j*np.pi * freq
+        
+    # Generate OpenLoop Transfer Function
+    system_extract = Extract_Sympy_1Var(system, omega, evaluation=evaluation)
+    system_extract = basic.CMPLX2Format(system_extract)
+ 
+    # extract real and imaginary part
+    realpart = np.real(system_extract['complex'])
+    imagpart = np.imag(system_extract['complex'])
+    
+    # =================================== 
+    # finding distance to Nyquist Point
+
+    # ===================================    
+    # Generate Magnitude Plot Settings
+    plot_complex.append([realpart, imagpart, 'TransferFct' + str(label)])
+    
+    # =================================== 
+    # Generate Plot
+    
+    if plot:
+        ax1 = plt.subplot(111)
+        fig.add_axes(ax1)
+
+        if unity:
+            
+            # Unity Circle
+            t = np.linspace(0,np.pi*2,100)
+            plt.plot(np.cos(t), np.sin(t), linewidth=1, linestyle='--',
+                     color='k', label="Unity")
+
+
+        # Normal Plot
+        basic.Linear_Plot(ax1, plot_complex, ["Re", ''], ["Img", ''],
+                          BlackWhite=PlotBlackWhite, Legend=Legend,
+                          LegendLoc = LegendLoc)
+    
+    # ===================================         
+    # return complex values
+    return system_extract['complex']
+     
+#############################################################################
+#           Extract Magnitude and Phase from Laplace Transfer Function
+#############################################################################
+def ZeroPole_Plot(symbolic, variable='s', init_guess=1+1j, tolerance = 1e-14,
+                  newton=True):
+############################################################################# 
+    """
+    Generate Zero Pole Plot using newton algorithm for complex poles
+    
+
+    paramters              description
+    =====================  =============================================:
+    system                  symbolic systems transfer function
+    freq                    frequency span
+    evaluation              (optional) define the used evalutaion function (lambdify|subs) 
+    PlotBlackWhite          (optional) plot only in black and white
+    Xlabel_freq             (optional) Label and Unit of Frequency X-Axis
+    Ylabel_dB               (optional) Label and Unit of dB Y-Axis 
+    Ylabel_PH               (optional) Label and Unit of phase Y-Axis
+    fig                     (optional) matplot figure
+    
+    return type
+       plot
+       
+    """   
+ #############################################################################     
+    # Generate Function (Denom, Nom) for coupling, that has to be solved
+    TransferFct = sympy.simplify(symbolic)
+    TF_nom_sym , TF_denom_sym  = sympy.fraction(TransferFct)
+       
+    # generate derivertive for Newton algorithm
+    TF_nom_prime = sympy.diff(TF_nom_sym, variable)
+    TF_denom_prime  = sympy.diff(TF_denom_sym, variable)
+       
+    # export function for Denom and Nom
+    TF_nom = sympy.lambdify(variable, TF_nom_sym)
+    TF_denom = sympy.lambdify(variable, TF_denom_sym)
+
+    # ===================================
+       
+    # check for zeros (nom = 0)
+    try:
+        Nom_Const = TF_nom_prime.is_integer
+    except:
+        Nom_Const = False
+    
+    
+    # ===================================    
+    if Nom_Const:
+        
+        # nothing to solve
+        solved_nom = float("NaN")
+        
+    elif newton:
+
+        # generate derivertive
+        TF_nom_prime = sympy.lambdify(variable, TF_nom_prime)
+        
+        # solving for zeros with newton
+        solved_nom = sp.optimize.newton(TF_nom, x0=init_guess,
+                                        fprime=TF_nom_prime, tol=tolerance)
+        
+    else:
+        
+        # solve only for real
+        init_guess_re = np.real(init_guess)
+        
+        # solving for zeros 
+        solved_nom = sp.optimize.root(TF_nom, init_guess_re, tol=tolerance)
+        
+        # check zeros  for errors
+        error = TF_nom(solved_nom.x)
+        if solved_nom.success or (error < tolerance):
+            solved_nom = solved_nom.x
+        else:
+            solved_nom = float("NaN")
+ 
+    # ===================================
+        
+    # check for poles (denom = 0)
+    try:
+        Denom_Const = TF_denom_prime.is_integer
+    except:
+        Denom_Const = False
+    
+    # ===================================    
+    if Denom_Const:
+        
+        # nothing to solve
+        solved_denom = float("NaN")
+        
+    elif newton:
+        
+        # generate derivertive
+        TF_denom_prime = sympy.lambdify(variable, TF_denom_prime)
+  
+        # solving for poles with newton
+        solved_denom = sp.optimize.newton(TF_denom, x0=init_guess,
+                                          fprime=TF_denom_prime, tol=tolerance)
+                 
+    else:
+        
+        # solve only for real
+        init_guess_re = np.real(init_guess)
+        
+        # solving for poles
+        solved_denom = sp.optimize.root(TF_denom, init_guess_re, tol=tolerance)
+        
+        # check zeros  for errors
+        error = TF_denom(solved_denom.x)
+        if solved_denom.success or (error < tolerance):
+            solved_denom = solved_denom.x
+        else:
+            solved_denom = float("NaN")
+            
+    # ===================================
+    # Plot Zeros and Poles in Imag/Re Plane
+    print("Solved - Nom:" + str(solved_nom) + " Denom: " + str(solved_denom))   
+    
+    # return solved values
+    return [solved_nom, solved_denom]
+    
+############################################################################# 
      
 #############################################################################
 #           Generate StepResponse out of symbolic transfer function

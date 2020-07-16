@@ -18,7 +18,6 @@ import numpy as np
 import skrf as rf
 import matplotlib.pyplot as plt
 
-
 #############################################################################
 ###         Import ASCII Data from ADS File
 #############################################################################
@@ -26,6 +25,7 @@ import matplotlib.pyplot as plt
 def ImportData(file, Rename=False, Rename_Table = [], Merge=False, MergeColumn='', complexdata=False, **kwargs):
 #############################################################################    
     """
+	OBSOLTE! PLEASE LOOK AT BASIC_TOOLBOX
    Import ADS ASCII File with Data (e.g. HB Simulation)
     
     file format should look like:
