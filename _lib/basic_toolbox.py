@@ -1031,7 +1031,7 @@ def Box_Plot(ax, XDataset , YDataset, X_label, Y_label, boxwidth=0,
 #############################################################################
 def SemiLogX_Plot(ax, Plot_list, X_label, Y_label, Legend=True, LegendLoc=0, 
                   TwinX=None, Ylim=None, XAutolim=True, fontsize=12, 
-                  LegendAlpha=1, BlackWhite=False, **kwargs):
+                  LegendAlpha=1, BlackWhite=False, XTicksLabel=None, **kwargs):
 #############################################################################  
     """
     Prepares a X Log and Y Linear plot
@@ -1050,6 +1050,7 @@ def SemiLogX_Plot(ax, Plot_list, X_label, Y_label, Legend=True, LegendLoc=0,
     fontsize                (option) Fontsize of this Plot 
     LegendAlpha             (option) Transparency of legend box
     BlackWhite              (option) Use Black and White Preset
+    XTicksLabel             (option) Sets the number of XTicks between min and max
     
     return type
        None  (writes directly into axis)
@@ -1106,19 +1107,22 @@ def SemiLogX_Plot(ax, Plot_list, X_label, Y_label, Legend=True, LegendLoc=0,
                 
         # plot
         ax.semilogx(x_plot, y_plot, label=plot[2], **userargs)     
-      
+
+    # =================================== 
     # label
     ax.set_ylabel(Y_label[0])
     ax.yaxis.set_major_formatter(tck.EngFormatter(unit=Y_label[1]))
     ax.set_xlabel(X_label[0])
     ax.xaxis.set_major_formatter(tck.EngFormatter(unit=X_label[1]))
-        
+
+    # ===================================         
     # set font sizes
     for item in ([ax.title, ax.xaxis.label, ax.yaxis.label] +
              ax.get_xticklabels() + ax.get_yticklabels()):
         item.set_fontsize(fontsize)
-        
-        # Align both Y Axis to grid
+      
+    # =================================== 
+    # Align both Y Axis to grid
     if not(TwinX==None) and type(TwinX) == type(ax) and Legend:
         
         # Align Axis
@@ -1142,15 +1146,27 @@ def SemiLogX_Plot(ax, Plot_list, X_label, Y_label, Legend=True, LegendLoc=0,
         ax.grid(True, which='major')
         ax.grid(which='minor', alpha=1, linestyle=':', linewidth=1)
         ax.grid(which='major', alpha=1, linewidth=1.2)
-        
-        # xlimit
+      
+    # =================================== 
+    # xlimit
     if XAutolim:
         ax.set_xlim([np.min(plot[0]),np.max(plot[0])])
 
-    # xlimit    
+    # =================================== 
+    # xlimit    a
     if Ylim:
         ax.set_ylim([Ylim[0],Ylim[1]])
+    
+    # =================================== 
+    # change XTick Label Position
+    if XTicksLabel:
         
+        # change visibility of each Nth tick
+        for (index,label) in enumerate(ax.xaxis.get_ticklabels()):
+            if index % XTicksLabel != 0:
+                label.set_visible(False)
+        
+  
     # jump back
     return
 
