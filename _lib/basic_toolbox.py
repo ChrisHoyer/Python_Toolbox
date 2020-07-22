@@ -1174,8 +1174,8 @@ def SemiLogX_Plot(ax, Plot_list, X_label, Y_label, Legend=True, LegendLoc=0,
 ###         Generate Vertical Line with Label
 #############################################################################
 def Vline_Plot(ax, xValue, xLabel, yDistance=0.25, yPos='up', color='r',
-               fontsize='12', linestyle='-', horizontalalignment='center',
-               **kwargs):
+               fontsize='12', linestyle='-', linewidth=1,
+               horizontalalignment='center', **kwargs):
 #############################################################################  
     """
     Generates Vertical Line in Plot
@@ -1190,6 +1190,7 @@ def Vline_Plot(ax, xValue, xLabel, yDistance=0.25, yPos='up', color='r',
     color                   color of line and text (default=red)
     fontsize                fontsize of text (default=12)
     linestyle               linestyle of line (default='-')
+    linewidth               linewidth
     horizontalalignment     Alignment of text (default='center')
     
     return type
@@ -1204,7 +1205,7 @@ def Vline_Plot(ax, xValue, xLabel, yDistance=0.25, yPos='up', color='r',
 
 #############################################################################  
     # Add vertical line
-    ax.axvline(x=xValue, color=color, linestyle=linestyle)
+    ax.axvline(x=xValue, color=color, linestyle=linestyle, linewidth=linewidth)
 
     # find y Position
     ylimits = ax.get_ylim()
