@@ -201,14 +201,14 @@ def Fnet_Bi2N_Stab(phase_delay, omega0_div, G_CPLG, variable,
 #############################################################################    
     """
    Simple Network in Laplace with two bidirectional coupled nodes to calculate
-   the global network frequency vs the phase delay
+   the global network frequency and stability vs the phase delay 
    Note, that this is a differential equation. Where the init value has to be set.
     
     parameters              description
     =====================  =============================================:
     phase_delay             current phase delay
     omega0_div              divided quiescent PLL frequency
-    G_CPLG                  Open Loop Transfer Function (with laplace variable)
+    G_CPLG                  Open Loop Transfer Function in steady state (with laplace variable)
     variable                laplace variable
     
     mode                    (optionally) mode locking (0 or pi)
@@ -217,7 +217,7 @@ def Fnet_Bi2N_Stab(phase_delay, omega0_div, G_CPLG, variable,
     Nyquist_Freq            (optionally) Span where Nyquist Stability is anaylized
     Nyquist_Neglect         (optionally) Neglect first Values for Analysis
     calc_networkstab        (optionally) Calculate Network Stability via Nyquist
-    G_CPLG_LF               (optionally) G_CPLG but for Network Stability
+    G_CPLG_LF               (optionally) G_CPLG but for Network  with LF (no steady state)
     nyquist_tolerance       (optionally) tolerance of nyquist solving
     stab_tolerance          (optionally) tolerance of stability solver
     debug_return            (optionally) Return optional values (see below)
@@ -257,10 +257,10 @@ def Fnet_Bi2N_Stab(phase_delay, omega0_div, G_CPLG, variable,
     
     # return dictionary
     return_var = {}
-    return_var["Phase_Delay"] = phase_delay/np.pi
+    return_var["Phase_Delay"] = -phase_delay/np.pi
     return_var["Net_Calc"] = calc_networkstab
         
-    # Calculate Phase Error tilde
+    # Calculate Phase Error tilde substitude
     phase_error = mode - phase_delay - phaseshift*np.pi
 
 #############################################################################   
@@ -326,8 +326,8 @@ def Fnet_Bi2N_Stab(phase_delay, omega0_div, G_CPLG, variable,
     G_CPLG_CL = G_CPLG_TF / (1 + G_CPLG_TF)
     G_CPLG_CL = sympy.simplify(G_CPLG_CL)
     
-    G_CPLG_CL_nom, G_CPLG_CL_denom = sympy.fraction(G_CPLG_CL)
-        
+    # Generate Nominator and Denmominator for Analyzes of Poles/Zeros
+    G_CPLG_CL_nom, G_CPLG_CL_denom = sympy.fraction(G_CPLG_CL)   
 
     # export function for Denom and Nom
     G_CPLG_CL_nom = sympy.lambdify([variable], G_CPLG_CL_nom)
@@ -444,8 +444,6 @@ def Fnet_Bi2N_Stab(phase_delay, omega0_div, G_CPLG, variable,
     return return_var
 
 #############################################################################  
-
-
 
 
 #############################################################################
