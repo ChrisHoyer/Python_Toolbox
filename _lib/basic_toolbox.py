@@ -743,7 +743,7 @@ def Linearization_Point(XData, YData, XPoint, Tolerance, num=100,
 #############################################################################
 def Linear_Plot(ax, Plot_list, X_label, Y_label, Legend=True, LegendLoc=0,
                 TwinX=None, Ylim=None, Xlim=None, XAutolim=True, fontsize=14,
-                TicksEng=True, XTicksLabel=None,
+                TicksEng=True, XTicksLabel=None, legendcol=1,
                 fontsize_label=14, yaxis_pad=0, xaxis_pad=0, BlackWhite=False,
                 grid = True,
                 **kwargs):
@@ -766,6 +766,7 @@ def Linear_Plot(ax, Plot_list, X_label, Y_label, Legend=True, LegendLoc=0,
     TicksEng                (option) Enable Engineering Ticks
     XTicksLabel             (option) Number of Ticks between min and max
     fontsize_label          (option) Fontsize of the axis labels
+    legendcol               (option) Legend Columns
     yaxis_pad               (option) move label to y-axis (padding)
     xaxis_pad               (option) move label to x-axis (padding)    
     BlackWhite              (option) Use Black and White Preset
@@ -902,7 +903,7 @@ def Linear_Plot(ax, Plot_list, X_label, Y_label, Legend=True, LegendLoc=0,
         
         if Legend:
             # legend
-            ax.legend(framealpha=1, loc=LegendLoc, fontsize=fontsize)
+            ax.legend(framealpha=1, loc=LegendLoc, fontsize=fontsize, ncol=legendcol)
     
         # Generate new Grid
         if grid:
