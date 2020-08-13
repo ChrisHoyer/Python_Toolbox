@@ -742,7 +742,8 @@ def Linearization_Point(XData, YData, XPoint, Tolerance, num=100,
 ###         Generate Plot for Time Domain / Linear
 #############################################################################
 def Linear_Plot(ax, Plot_list, X_label, Y_label, Legend=True, LegendLoc=0,
-                TwinX=None, Ylim=None, XAutolim=True, fontsize=14, TicksEng=True,
+                TwinX=None, Ylim=None, Xlim=None, XAutolim=True, fontsize=14,
+                TicksEng=True, XTicksLabel=None,
                 fontsize_label=14, yaxis_pad=0, xaxis_pad=0, BlackWhite=False,
                 grid = True,
                 **kwargs):
@@ -759,9 +760,11 @@ def Linear_Plot(ax, Plot_list, X_label, Y_label, Legend=True, LegendLoc=0,
     Legend                  (option) plot legend
     LegendLoc               (option) legend location
     TwinX                   (option) primary Y-Axis
-    Ylim                    (option) set Y-Axis limits
-    Xlim                    (option) set automatically X Limit
-    fontsize                (option) Fontsize of this Plot 
+    Ylim                    (option) set Y-Axis limits [Y0,Y1]
+    Xlim                    (option) set X-Axis limits [X0,X1]
+    XAutolim                (option) set automatically X Limit (bool)
+    TicksEng                (option) Enable Engineering Ticks
+    XTicksLabel             (option) Number of Ticks between min and max
     fontsize_label          (option) Fontsize of the axis labels
     yaxis_pad               (option) move label to y-axis (padding)
     xaxis_pad               (option) move label to x-axis (padding)    
@@ -853,7 +856,11 @@ def Linear_Plot(ax, Plot_list, X_label, Y_label, Legend=True, LegendLoc=0,
         
         # set x limit
         ax.set_xlim([x_limit_min,x_limit_max])
-    
+
+    # xlimit    
+    if Xlim:
+        ax.set_xlim([Xlim[0],Xlim[1]])
+        
     # xlimit    
     if Ylim:
         ax.set_ylim([Ylim[0],Ylim[1]])
@@ -867,7 +874,18 @@ def Linear_Plot(ax, Plot_list, X_label, Y_label, Legend=True, LegendLoc=0,
     for item in ([ax.xaxis.label, ax.yaxis.label]):
         item.set_fontsize(fontsize_label)
     
-        # Align both Y Axis to grid
+    # =================================== 
+    # change XTick Label Position
+    if XTicksLabel:
+        
+        # change visibility of each Nth tick
+        for (index,label) in enumerate(ax.xaxis.get_ticklabels()):
+            if index % XTicksLabel != 0:
+                label.set_visible(False)
+        
+  
+     # ===================================    
+    # Align both Y Axis to grid
     if not(TwinX==None) and type(TwinX) == type(ax) and Legend:
         
         # Align Axis
