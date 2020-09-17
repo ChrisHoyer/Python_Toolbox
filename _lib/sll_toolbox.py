@@ -610,7 +610,7 @@ def Calc_3thGen_V1_1_homogen_nonlinear(time_start=0, time_end=10e-9, time_points
     K_LF = 1
      
     # Quiescent PLL VCO Frequency
-    VCO_freq0 = 2*np.pi*21.5e9
+    VCO_freq0 = 2*np.pi*21.8e9
                          
     # Quiescent PLL Network Freq
     Omega0_Div = VCO_freq0/Div_N
@@ -633,7 +633,7 @@ def Calc_3thGen_V1_1_homogen_nonlinear(time_start=0, time_end=10e-9, time_points
         
         # Steady State Ampltiude after Xpd + Offset of VCO Pre-Bias
         if not(lin):
-            A_PD = 1.6 * X_PD + 2.2
+            A_PD = 1.6 * X_PD + 2.05
         # linearize
         else:
             A_PD = 1.6 * X_PD

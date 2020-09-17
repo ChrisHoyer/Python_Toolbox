@@ -48,7 +48,7 @@ def CSV2Dict(csv_file, delimiter=';', complexdelimiter='/',
              headerline_ends=0, blockheader=False, blockkeys=[],
              headerkeys=[], cellsize=[], **kwargs):
 ############################################################################# 
-        """
+    """
     Imports all CSV Data (also complex and logarithmic data)
     Specialized for LTspice and ADS
 
@@ -79,247 +79,247 @@ def CSV2Dict(csv_file, delimiter=';', complexdelimiter='/',
    
     """
 #############################################################################  
-        # row state
-        States = ['', 'SimpleNumber', 'ComplexNumber', 'Text', 'Array']
-        
-        # Matching Numbers to parse float / scientific data
-        scientific_number = re.compile('[-+]?\ *[0-9]+\.?[0-9]*(?:[Ee]\ *[-+]?\ *[0-9]+)?')  
-        
-                
+    # row state
+    States = ['', 'SimpleNumber', 'ComplexNumber', 'Text', 'Array']
+    
+    # Matching Numbers to parse float / scientific data
+    scientific_number = re.compile('[-+]?\ *[0-9]+\.?[0-9]*(?:[Ee]\ *[-+]?\ *[0-9]+)?')  
+    
+            
 #############################################################################
+    
+    def CSVData_DefineContent(header, row, v):
         
-        def CSVData_DefineContent(header, row, v):
-            
-            # Default: No State
-            Current_State = States[0]
-            
-            # remove leading or tailing whitespaces
-            cell_content = v.strip()
-            
-            # only plain Number (normal or scientific)
-            try:
-                float(cell_content)
-                Current_State = States[1]
-                    
-            except:
+        # Default: No State
+        Current_State = States[0]
+        
+        # remove leading or tailing whitespaces
+        cell_content = v.strip()
+        
+        # only plain Number (normal or scientific)
+        try:
+            float(cell_content)
+            Current_State = States[1]
                 
-                # Data is Array?
-                if (type(cell_content) is str) & (cell_content[0] == '[') & (cell_content[-1] == ']'):
-                     Current_State = States[4]                     
-                                      
-                # Row with Text and not empty?
-                elif (type(cell_content) is str) & (cell_content != "") :
-                     Current_State = States[3]                     
-                    
-                # Contains two values? -> Complex
-                elif len(cell_content.split(complexdelimiter)) == 2:
-                    Current_State = States[2]
-                    
-            return Current_State
+        except:
+            
+            # Data is Array?
+            if (type(cell_content) is str) & (cell_content[0] == '[') & (cell_content[-1] == ']'):
+                 Current_State = States[4]                     
+                                  
+            # Row with Text and not empty?
+            elif (type(cell_content) is str) & (cell_content != "") :
+                 Current_State = States[3]                     
+                
+            # Contains two values? -> Complex
+            elif len(cell_content.split(complexdelimiter)) == 2:
+                Current_State = States[2]
+                
+        return Current_State
 
 #############################################################################
+        
+    def CSVData_ParseContent(header, row, v):
+        
+        # Classify Data
+        State = CSVData_DefineContent(header, row, v)
+                    
+        try:
+            # Convert Float Data
+            if State == States[1]:
+                # Only a number?:
+                v_parsed = float(v)
             
-        def CSVData_ParseContent(header, row, v):
-            
-            # Classify Data
-            State = CSVData_DefineContent(header, row, v)
+            # Convert Complex Data
+            elif State == States[2]:
+                # Split
+                v = v.split(complexdelimiter)
+                    
+                # check length 
+                if len(v) == 2:
                         
-            try:
-                # Convert Float Data
-                if State == States[1]:
-                    # Only a number?:
-                    v_parsed = float(v)
-                
-                # Convert Complex Data
-                elif State == States[2]:
-                    # Split
-                    v = v.split(complexdelimiter)
+                    # convert to magniture and angle
+                    v_mag = [float(x) for x in re.findall(scientific_number, v[0])][0]
+                    v_angl =[float(x) for x in re.findall(scientific_number, v[1])][0]
                         
-                    # check length 
-                    if len(v) == 2:
+                    # check if in dB or linear and convert to volts
+                    if v[0].find("dB", re.IGNORECASE):
+                        v_mag = 10**(v_mag/20)
                             
-                        # convert to magniture and angle
-                        v_mag = [float(x) for x in re.findall(scientific_number, v[0])][0]
-                        v_angl =[float(x) for x in re.findall(scientific_number, v[1])][0]
+                    # polar coordinates to cartesian
+                    v_parsed = v_mag * np.exp(1j*v_angl)
                             
-                        # check if in dB or linear and convert to volts
-                        if v[0].find("dB", re.IGNORECASE):
-                            v_mag = 10**(v_mag/20)
-                                
-                        # polar coordinates to cartesian
-                        v_parsed = v_mag * np.exp(1j*v_angl)
-                                
-                # Convert Header Data                                
-                elif State == States[3]:
-                    # new Block starts
-                    v_parsed = States[3]
-                    
-                # Array?
-                elif State == States[4]:
-                    
-                    # generate list
-                    v_parsed = v.replace('[', "").replace(']', "")
-                    v_parsed = v_parsed.split(",")
-                    
-                    # float
-                    v_parsed = [float(i.strip()) for i in v_parsed]
-                    
-                else:
-                    v_parsed = float('NaN')
-                    print("Data " + str(v) + " could not be parsed!")                  
+            # Convert Header Data                                
+            elif State == States[3]:
+                # new Block starts
+                v_parsed = States[3]
                 
-            except:
-                print("Data " + str(v) + " could not be parsed!") 
+            # Array?
+            elif State == States[4]:
                 
-            return v_parsed
+                # generate list
+                v_parsed = v.replace('[', "").replace(']', "")
+                v_parsed = v_parsed.split(",")
+                
+                # float
+                v_parsed = [float(i.strip()) for i in v_parsed]
+                
+            else:
+                v_parsed = float('NaN')
+                print("Data " + str(v) + " could not be parsed!")                  
             
+        except:
+            print("Data " + str(v) + " could not be parsed!") 
+            
+        return v_parsed
+        
 #############################################################################                
 
-        # Import CSV Matrix
-        csv_reader = csv.reader(open(csv_file), delimiter=delimiter)
+    # Import CSV Matrix
+    csv_reader = csv.reader(open(csv_file), delimiter=delimiter)
 		
 		# start with first line
-        global_line_count = 0
-        
-        # generate new Block
-        NewBlockStart = True
-        block_line = 0
-        block_name = ''
-        block_count = 0
-        
-        # Content
-        Block = {}
-        Data = {}
-        
-        
+    global_line_count = 0
+    
+    # generate new Block
+    NewBlockStart = True
+    block_line = 0
+    block_name = ''
+    block_count = 0
+    
+    # Content
+    Block = {}
+    Data = {}
+    
+    
  #############################################################################  
-        
-        # Iterate each row of the file
-        for row in csv_reader:
-             
-            # Skip Global Header
-            if  global_line_count < (headerline_ends):
-                global_line_count += 1
-                continue
+    
+    # Iterate each row of the file
+    for row in csv_reader:
+         
+        # Skip Global Header
+        if  global_line_count < (headerline_ends):
+            global_line_count += 1
+            continue
 			 
-            # empty row? -> skip and  new Block
-            if not row:
-                NewBlockStart = True
-                continue
+        # empty row? -> skip and  new Block
+        if not row:
+            NewBlockStart = True
+            continue
+        
+        # name new block
+        if NewBlockStart:
             
-            # name new block
-            if NewBlockStart:
-                
-                # reset flag
-                NewBlockStart = False
-                
-                # Any external names defined?
-                if not blockkeys:
-                    block_name = block_count
-                else:
-                    block_name = blockkeys[block_count]
-                    
-                # Insert readed Block and start new block
-                if len(Block) > 0:
-                    
-                    # insert into dataset
-                    Data[block_name] = Block
-                    block_count = block_count + 1
-                    
-                    # delete old Block
-                    block_line = 0
-                    Block = {}
+            # reset flag
+            NewBlockStart = False
             
-            # starting new block
-            if block_line == 0:
+            # Any external names defined?
+            if not blockkeys:
+                block_name = block_count
+            else:
+                block_name = blockkeys[block_count]
                 
-                # Using current line as Header
-                header = [r.strip() for r in row]
+            # Insert readed Block and start new block
+            if len(Block) > 0:
                 
-                # TODO? What happend, when there is no header? i.e. ADS export
+                # insert into dataset
+                Data[block_name] = Block
+                block_count = block_count + 1
                 
-                # external header defined and same size?
-                if len(header) == len(headerkeys):
-                    header = headerkeys
-                    
-                # generate header for empty block dictinary
-                for h in header:
-                    Block[h] = []
+                # delete old Block
+                block_line = 0
+                Block = {}
+        
+        # starting new block
+        if block_line == 0:
+            
+            # Using current line as Header
+            header = [r.strip() for r in row]
+            
+            # TODO? What happend, when there is no header? i.e. ADS export
+            
+            # external header defined and same size?
+            if len(header) == len(headerkeys):
+                header = headerkeys
+                
+            # generate header for empty block dictinary
+            for h in header:
+                Block[h] = []
  
  ############################################################################# 
-                    
-            # data content begins
-            if block_line > 0:
                 
-                # row is larger then header?
-                if len(row) > len(header):
-                    
-                    #rearrange row to match cellsize
-                    if len(cellsize) == len(header):
-                        
-                        # generate new row
-                        new_row = []
-                        lastsize = 0
-                        
-                        # iterate cellsize and rearrange
-                        for size in cellsize:
-
-                            # only one item?
-                            if size == 1:
-                                newcell =  row[lastsize]
-                                newcell = str(newcell).replace("'","")
-                                lastsize = size
-                                
-                            else:
-                                # bring into new row
-                                newcell = row[lastsize:(size+lastsize)]
-                                newcell = str(newcell).replace("'","")
-                                lastsize = size + 1
-                                
-
-                            
-                            # include new cell into new row
-                            new_row.append(newcell)
-                            
-                        # generate new row, with right length
-                        row = new_row
-                        
-                    else:
-                        print("Please include cellsize!")
-                        return 0
-                    
-                # iterate row with repect to header
-                for header_cell, cell in zip(header,row):
-                    
-                    # classify data and parse content
-                    parsed_Data = CSVData_ParseContent(header, row, cell)
-                    
-                    # Header found?
-                    if parsed_Data == States[3]:
-                        NewBlockStart = True
-                        
-                        # TODO New Block
-                        continue
-                        
-                    # add Data into Block
-                    Block[header_cell].append(parsed_Data)
-                       
-            # next line
-            block_line += 1
-            global_line_count += 1
+        # data content begins
+        if block_line > 0:
             
+            # row is larger then header?
+            if len(row) > len(header):
+                
+                #rearrange row to match cellsize
+                if len(cellsize) == len(header):
+                    
+                    # generate new row
+                    new_row = []
+                    lastsize = 0
+                    
+                    # iterate cellsize and rearrange
+                    for size in cellsize:
+
+                        # only one item?
+                        if size == 1:
+                            newcell =  row[lastsize]
+                            newcell = str(newcell).replace("'","")
+                            lastsize = size
+                            
+                        else:
+                            # bring into new row
+                            newcell = row[lastsize:(size+lastsize)]
+                            newcell = str(newcell).replace("'","")
+                            lastsize = size + 1
+                            
+
+                        
+                        # include new cell into new row
+                        new_row.append(newcell)
+                        
+                    # generate new row, with right length
+                    row = new_row
+                    
+                else:
+                    print("Please include cellsize!")
+                    return 0
+                
+            # iterate row with repect to header
+            for header_cell, cell in zip(header,row):
+                
+                # classify data and parse content
+                parsed_Data = CSVData_ParseContent(header, row, cell)
+                
+                # Header found?
+                if parsed_Data == States[3]:
+                    NewBlockStart = True
+                    
+                    # TODO New Block
+                    continue
+                    
+                # add Data into Block
+                Block[header_cell].append(parsed_Data)
+                   
+        # next line
+        block_line += 1
+        global_line_count += 1
+        
   #############################################################################                    
+        
+    # only one Block? 
+    if block_count == 0:
+        return Block
+    else:
+        
+        # add last block, if not empty
+        if len(Block) > 0:
+            Data[block_name] = Block
             
-        # only one Block? 
-        if block_count == 0:
-            return Block
-        else:
-            
-            # add last block, if not empty
-            if len(Block) > 0:
-                Data[block_name] = Block
-                
-            return Data
+        return Data
 
 ############################################################################# 
     
@@ -755,8 +755,8 @@ def Linear_Plot(ax, Plot_list, X_label, Y_label, Legend=True, LegendLoc=0,
     =====================  =============================================:
     ax                      plot axis
     Plot_list               all X and Y Values also Labels (and arguments)
-    X_label                 X Axis Label and Unit (Engineering Package)
-    Y_label                 Y Axis Label and Unit (Engineering Package)
+    X_label                 X Axis Label and Unit (option: rescaling factor) (Engineering Package)
+    Y_label                 Y Axis Label and Unit (option: rescaling factor)(Engineering Package)
     Legend                  (option) plot legend
     LegendLoc               (option) legend location
     TwinX                   (option) primary Y-Axis
@@ -824,7 +824,14 @@ def Linear_Plot(ax, Plot_list, X_label, Y_label, Legend=True, LegendLoc=0,
         for userarg in userargs:
             if userargs[userarg].isdigit():
                 userargs[userarg] = int(userargs[userarg])
-            
+                
+        # rescaling of the y-axis required?
+        if len(Y_label) == 3:
+            y_plot = [y_data*Y_label[2] for y_data in y_plot]
+ 
+        # rescaling of the x-axis required?
+        if len(X_label) == 3:
+            x_plot = [x_data*X_label[2] for x_data in x_plot]
             
         ax.plot(x_plot, y_plot, label=plot[2], **userargs)
         
@@ -972,11 +979,20 @@ def Box_Plot(ax, XDataset , YDataset, X_label, Y_label, boxwidth=0,
     
     # find all old legends
     legend_old_handles, legend_old_labels = ax.get_legend_handles_labels()
-
-    # calculate box width with 25% of min distance between X Points 
+        
+    # rescaling of the y-axis required?
+    if len(Y_label) == 3:
+        for index in range(len(YDataset)):
+            YDataset[index] = [subitem*Y_label[2] for subitem in YDataset[index]]
+ 
+    # rescaling of the x-axis required?
+    if len(X_label) == 3:
+        XDataset = [x_data*X_label[2] for x_data in XDataset]
+        
+     # calculate box width with 25% of min distance between X Points 
     if not boxwidth:
         boxwidth = np.mean(np.abs(XDataset-np.roll(XDataset,1)))*0.25
-            
+           
     # create box plot
     bp = ax.boxplot(YDataset, positions=XDataset, widths=boxwidth, **kwargs)
       
@@ -1868,6 +1884,11 @@ def Spectrum_Minimizer(Freq_Matrix, Mag_Matrix, nanvalue=-100, minmax=True,
                   
     """   
 #############################################################################      
+
+    # check size of both matricies
+    if not(Freq_Matrix.shape == Mag_Matrix.shape):
+        print("ERROR: Size of input matrices not equal!")
+
     # find min and max value
     if minmax == False:
         Freq_min = np.min(Freq_Matrix)
