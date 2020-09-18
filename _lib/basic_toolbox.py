@@ -28,6 +28,7 @@ from cycler import cycler
 
 import matplotlib.ticker as tck
 import matplotlib.pyplot as plt
+import matplotlib.patches as patches
 import numpy as np
 import csv
 import re
@@ -1208,7 +1209,7 @@ def SemiLogX_Plot(ax, Plot_list, X_label, Y_label, Legend=True, LegendLoc=0,
 #############################################################################
 ###         Generate Vertical Line with Label
 #############################################################################
-def Vline_Plot(ax, xValue, xLabel, yDistance=0.25, yPos='up', color='r',
+def Vline_Plot(ax, xValue, xLabel, yDistance=0.5, yPos='up', color='r',
                fontsize='12', linestyle='-', linewidth=1,
                horizontalalignment='center', **kwargs):
 #############################################################################  
@@ -1317,7 +1318,45 @@ def Hline_Plot(ax, yValue, yLabel, xDistance=0.4, xPos='right', color='r',
     
     # jump back
     return
-     
+
+#############################################################################
+###         Generate Vertical Line with Label
+#############################################################################
+def Rectangle_Plot(ax, xCenter, xSpan, yCenter, ySpan, color='r', **kwargs):
+#############################################################################  
+    """
+    Generates Vertical Line in Plot
+
+    paramters              description
+    =====================  =============================================:
+    ax                      plot axis
+    xCenter                 Rectangle x-axis center
+    xSpan                   Rectangle x-axis span
+    yCenter                 Rectangle y-axis center
+    ySpan                   Rectangle y-axis span
+    color                   color of line and text (default=red)
+    
+    return type
+       None  (writes directly into axis)
+       
+
+   
+    """    
+
+#############################################################################  
+
+    # calculate startpoints
+    xstart = xCenter - xSpan/2
+    ystart = yCenter - ySpan/2
+
+    # generate Rectangle
+    rect = patches.Rectangle((xstart,ystart),xSpan, ySpan, facecolor=color)          
+    ax.add_patch(rect) 
+    
+    # jump back
+    return
+ 
+    
 #############################################################################
 ###         Align two Y-axis
 #############################################################################

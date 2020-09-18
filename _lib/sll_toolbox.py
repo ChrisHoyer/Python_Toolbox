@@ -610,7 +610,7 @@ def Calc_3thGen_V1_1_homogen_nonlinear(time_start=0, time_end=10e-9, time_points
     K_LF = 1
      
     # Quiescent PLL VCO Frequency
-    VCO_freq0 = 2*np.pi*21.8e9
+    VCO_freq0 = 2*np.pi*21.46e9
                          
     # Quiescent PLL Network Freq
     Omega0_Div = VCO_freq0/Div_N
@@ -631,19 +631,25 @@ def Calc_3thGen_V1_1_homogen_nonlinear(time_start=0, time_end=10e-9, time_points
     # transfer function of PD Input after PETF (Xpd) to CrossCoupling output in steady state
     def  G_CPLG(X_PD, lin=False):
         
+        # fitment function parameters
+        slope = 1.93e9
+        prebias = 2.25
+        
         # Steady State Ampltiude after Xpd + Offset of VCO Pre-Bias
+        # Kvco non-linear function
         if not(lin):
-            A_PD = 1.6 * X_PD + 2.05
+            A_PD = 1.6 * X_PD + prebias
+            f_VCO = (2*np.pi*slope) * np.sqrt(A_PD) + VCO_freq0
+            
+            #hyperaprubt fit
+            #f_VCO = 2*np.pi*(26.312e9 - 4.818e9 * (1+ A_PD/-1.05e13)**3.69755475e12)
+            
         # linearize
         else:
             A_PD = 1.6 * X_PD
+            f_VCO = (2*np.pi*slope) * np.sqrt(A_PD)
             
-        # Kvco non-linear function
-        if not(lin):
-            f_VCO = (2*np.pi*1.8e9) * np.sqrt(A_PD) + VCO_freq0
-        else:
-            f_VCO = (2*np.pi*1.8e9) * np.sqrt(A_PD)
-            
+
         # VCO Freq Divided by Division Factor for Network Frequency
         Cplg = f_VCO * 1/Div_N
 
