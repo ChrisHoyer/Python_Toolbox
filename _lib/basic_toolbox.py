@@ -59,7 +59,7 @@ def CSV2Dict(csv_file, delimiter=';', complexdelimiter='/',
     delimiter               (option) csv file delimiter
     complexdelimiter        (option) delimiter if there is a complex value
     blockheader             (option) each block has header?
-    headerline_ends         (option) end of header (skip until this line)
+    headerline_ends         (option) end of header (skip until this line, -1: skip header at all)
     blockkeys               (option) custom block header names (must be equal to block count)
     headerkeys              (option) custom header names (must be equal to row count)
     cellsize                (option) cellsize of each cell
@@ -246,6 +246,10 @@ def CSV2Dict(csv_file, delimiter=';', complexdelimiter='/',
             # generate header for empty block dictinary
             for h in header:
                 Block[h] = []
+ 
+        # skip headerline, if headerline_ends == -1
+        if headerline_ends == -1:
+                block_line = 1
  
  ############################################################################# 
                 

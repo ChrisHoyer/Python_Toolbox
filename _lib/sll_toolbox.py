@@ -289,9 +289,9 @@ def Fnet_Bi2N_Stab_NonLinear(phase_delay, omega0_div, G_CPLG,  variable,
     parameters              description
     =====================  =============================================:
     phase_delay             current phase delay
-    omega0_div              divided quiescent PLL frequency
-    G_CPLG                  Nonlineare Open Loop Transfer Function in steady state
-    variable     
+    omega0_div              (not used) divided quiescent PLL frequency
+    G_CPLG                  Nonlineare Open Loop Transfer Function in steady state (K_LF=1)
+    variable                laplace variable
     
     mode                    (optionally) mode locking (0 or pi)
     coupling_function       (optionally) PD coupling function (XOR=sawtooth, Mixer=cos)
@@ -393,8 +393,8 @@ def Fnet_Bi2N_Stab_NonLinear(phase_delay, omega0_div, G_CPLG,  variable,
 #           Calculate PLL Stability
 #############################################################################  
     
-    # Transfer Function of Open Loop (linearized) with H_prime
-    G_CPLG_TF = G_CPLG(H_prime_PD, lin=True) * 1/variable
+    # Transfer Function of Open Loop (derivative) with H_prime and H
+    G_CPLG_TF = G_CPLG(H_PD, X_prime_PD=H_prime_PD, derivative=True) * 1/variable
     
     # Closed Loop Transfer Function of a Single PLL
     G_CPLG_CL = G_CPLG_TF / (1 + G_CPLG_TF)
@@ -452,7 +452,8 @@ def Fnet_Bi2N_Stab_NonLinear(phase_delay, omega0_div, G_CPLG,  variable,
     # Return only Stable Frequencies
     return_var["Network_Freq_Stable"] = OmegaNet*scaletoHz if (poles < 0.0) else float("NaN")        
     return_var["Network_Freq_UnStable"] = OmegaNet*scaletoHz if (poles >= 0.0) else float("NaN") 
-            
+ 
+           
     return return_var
 
 #############################################################################
@@ -609,11 +610,11 @@ def Calc_3thGen_V1_1_homogen_nonlinear(time_start=0, time_end=10e-9, time_points
     # Loop Filter Transfer Function
     K_LF = 1
      
-    # Quiescent PLL VCO Frequency
-    VCO_freq0 = 2*np.pi*21.46e9
+    # Quiescent VCO Frequency
+    PLL_freq0 = 2*np.pi*20.7923e9
                          
     # Quiescent PLL Network Freq
-    Omega0_Div = VCO_freq0/Div_N
+    Omega0_Div = PLL_freq0/Div_N
 
     # Time Delay
     Time_Delay = np.linspace(time_start,time_end,int(time_points))
@@ -629,32 +630,44 @@ def Calc_3thGen_V1_1_homogen_nonlinear(time_start=0, time_end=10e-9, time_points
     #############################################################################
     
     # transfer function of PD Input after PETF (Xpd) to CrossCoupling output in steady state
-    def  G_CPLG(X_PD, lin=False):
+    def  G_CPLG(X_PD, X_prime_PD=None, derivative=False):
         
         # fitment function parameters
-        slope = 1.93e9
-        prebias = 2.25
+        slope = 2.1974e9
+        VCO_qp = 20.7923e9
+        Vprebias = 2.5
         
-        # Steady State Ampltiude after Xpd + Offset of VCO Pre-Bias
-        # Kvco non-linear function
-        if not(lin):
-            A_PD = 1.6 * X_PD + prebias
-            f_VCO = (2*np.pi*slope) * np.sqrt(A_PD) + VCO_freq0
+        # Calulate Network frequency based on normalized PD Output
+        if not(derivative):
             
-            #hyperaprubt fit
-            #f_VCO = 2*np.pi*(26.312e9 - 4.818e9 * (1+ A_PD/-1.05e13)**3.69755475e12)
+            # calculate PD output Voltage, based on H_PD and Offset of VCO Pre-Biasffset
+            A_PD = 2 * 0.8 * X_PD 
             
-        # linearize
+            # calcululate vco frequency with nonlinear function
+            f_VCO = 2*np.pi (VCO_qp + slope * np.sqrt(Vprebias + A_PD))
+            
+            # calulate network frequency
+            f_NET = f_VCO * 1/Div_N
+            
+            return f_NET
+
+            
+        # Calulate stability based on normalized PD Output
         else:
-            A_PD = 1.6 * X_PD
-            f_VCO = (2*np.pi*slope) * np.sqrt(A_PD)
             
+            # calculate PD output Voltage, based on H_PD and Offset of VCO Pre-Biasffset
+            A_PD = 2 * 0.8 * X_P
+            
+            # use in steady state this voltage to calcululate vco sensitivity
+            # multiplied by inner function
+            K_VCO = X_prime_PD * (2*np.pi*slope) / (2*np.sqrt(Vprebias + A_PD))
+ 
+            # calulate network frequency sensitivity
+            f_NET = K_VCO* 1/Div_N
+            
+            return f_NET
 
-        # VCO Freq Divided by Division Factor for Network Frequency
-        Cplg = f_VCO * 1/Div_N
-
-        return Cplg
-        
+    #############################################################################
     # Mean Phase for Time Delay
     PhaseError = Omega0_Div * Time_Delay
     
