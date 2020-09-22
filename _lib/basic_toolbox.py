@@ -10,6 +10,7 @@
 # - SemiLogX_Plot: semilog x plot function with automated labeling
 # - Vline_Plot: generates vertical line in plot with label
 # - Hline_Plot: generates horizontal line in plot with label
+# - Rectangle_Plot: generates rectangle inside plot
 # - Align_YAxis: Align two YGrids in one plot
 # - FindPoint_NextValue: find nearest point
 # - Digitalize_Data: Generates binary stream from data and clock
@@ -18,9 +19,10 @@
 # - FrequencyFiltering: Frequency Filtering of Data
 # - String2List: Generates a List out of a csv with one line
 # - XYZ_Plot: generates 3D Plot (X,Y,Z) for i.e. waterfall diagrams
+# - Spectrum_Minimizer: Generates Mean and Max Spectrum from Dataset
 #
 #   Autor: C. Hoyer (info@chrishoyer.de)
-#   Stand: 02-01-2020
+#   Date: 22-09-2020
 #############################################################################
 
 from scipy.optimize import curve_fit
@@ -40,7 +42,6 @@ import re
 
 # Black and White Style
 monochrome = (cycler('color', ['k']) * cycler('linestyle', ['-', ':', '--']) * cycler('marker', ['^', '.','v']))
-
 
 #############################################################################
 ###         Import CSV File to a dictionary
@@ -1359,7 +1360,6 @@ def Rectangle_Plot(ax, xCenter, xSpan, yCenter, ySpan, color='r', **kwargs):
     
     # jump back
     return
- 
     
 #############################################################################
 ###         Align two Y-axis
@@ -1834,7 +1834,6 @@ def String2List(file, delimiter=','):
 
     return Output
   
-
 #############################################################################
 ##          XYZ-Plot
 #############################################################################

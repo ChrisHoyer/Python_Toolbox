@@ -16,7 +16,7 @@ Functionality to import ADS Simulation Data (ASCII-File) and calculate different
 - ImportS2P: Data conversion (change in future versions)
 
 ### Basic_Toolbox
-Major focus on plotting:
+Major focus on plotting and import
 
 - CSV2Dict: script for importing CSV Files
 - CSV2Area: script for calculating polygon area based on coordinates
@@ -28,6 +28,7 @@ Major focus on plotting:
 - SemiLogX_Plot: semilog x plot function with automated labeling
 - Vline_Plot: generates vertical line in plot with label
 - Hline_Plot: generates horizontal line in plot with label
+- Rectangle_Plot: generates rectangle inside plot
 - Align_YAxis: Align two YGrids in one plot
 - FindPoint_NextValue: find nearest point
 - Digitalize_Data: Generates binary stream from data and clock
@@ -49,13 +50,15 @@ Major fucus on control theorie and plotting
  - Substitute_Datatype: Substitute constant values with symboles
  - ReSubstitute_Datatype: Resubstitute constant values with symboles
 
-### sll_toolbox
+### SLL_Toolbox
 Major Focus on state-locked-loops
 
- - Bi_2Nodes_Freq_Stab: Simple Network in Laplace with two bidirectional coupled nodes to Calc Global Freq
+ - Fnet_Bi2N_Stab: Simple Network in Laplace with two bidirectional coupled nodes to Calc Global Freq
+ - Fnet_Bi2N_Stab_NonLinear: Nonlinear Network in Laplace with two bidirectional coupled nodes to Calc Global Freq
  
- Prototype Models:
- - Model_3thGen_V1_1_homogen
+Prototype Model Calc:
+ - Calc_3thGen_V1_1_homogen: Calculates important Values for Steady State Analysis
+ - Calc_3thGen_V1_1_homogen_nonlinear: Calculates important Values for Steady State Analysis (nonlinear)
 
 ### Mapping_Toolbox
 Major focus on WaferMapping:

@@ -2,12 +2,14 @@
 #   Different Scripts to Model State-Locked-Loops
 #
 #   - Fnet_Bi2N_Stab: Simple Network in Laplace with two bidirectional coupled nodes to Calc Global Freq
+#   - Fnet_Bi2N_Stab_NonLinear: Nonlinear Network in Laplace with two bidirectional coupled nodes to Calc Global Freq
 #
 #   Prototype Models
-#   - Calc_3thGen_V1_1_homogen
+#   - Calc_3thGen_V1_1_homogen: Calculates important Values for Steady State Analysis
+#   - Calc_3thGen_V1_1_homogen_nonlinear: Calculates important Values for Steady State Analysis (nonlinear)
 #
 #   Autor: C. Hoyer (info@chrishoyer.de)
-#   Stand: 31.08.2020
+#   Stand: 22.09.2020
 #############################################################################
 import controltheory_toolbox as ctrl
 
@@ -15,7 +17,6 @@ import sympy
 import time
 import numpy as np
 import scipy as sp
-from scipy import signal
 
 #############################################################################
 ###                 Linear Fnet_Bi2N incl. Stability
