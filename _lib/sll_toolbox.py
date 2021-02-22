@@ -17,6 +17,7 @@ import sympy
 import time
 import numpy as np
 import scipy as sp
+from scipy import signal
 
 #############################################################################
 ###                 Linear Fnet_Bi2N incl. Stability
@@ -290,7 +291,7 @@ def Fnet_Bi2N_Stab_NonLinear(phase_delay, omega0_div, G_CPLG,  variable,
     parameters              description
     =====================  =============================================:
     phase_delay             current phase delay
-    omega0_div              (not used) divided quiescent PLL frequency
+    omega0_div              (not used, only for compability) divided quiescent PLL frequency
     G_CPLG                  Nonlineare Open Loop Transfer Function in steady state (K_LF=1)
     variable                laplace variable
     
@@ -395,7 +396,7 @@ def Fnet_Bi2N_Stab_NonLinear(phase_delay, omega0_div, G_CPLG,  variable,
 #############################################################################  
     
     # Transfer Function of Open Loop (derivative) with H_prime and H
-    G_CPLG_TF = G_CPLG(H_PD, X_prime_PD=H_prime_PD, derivative=True) * 1/variable
+    G_CPLG_TF = G_CPLG(H_PD, H_prime_PD=H_prime_PD, derivative=True) * 1/variable
     
     # Closed Loop Transfer Function of a Single PLL
     G_CPLG_CL = G_CPLG_TF / (1 + G_CPLG_TF)
@@ -464,11 +465,10 @@ def Fnet_Bi2N_Stab_NonLinear(phase_delay, omega0_div, G_CPLG,  variable,
                                   
 #############################################################################
 ###                 3th Generation, Homogen and Linear PCB V1.1
-#############################################################################
-    
+#############################################################################  
 def Calc_3thGen_V1_1_homogen(time_start=0, time_end=10e-9, time_points=1e3,
                               VCO_freq0 = 2*np.pi*24.25e9,
-                              Div_N=16*32, K_VCO=2*np.pi*757e6,
+                              Div_N=16*32, K_VCO=2*np.pi*757.47e6,
                               K_PD = 1.6, K_LF = 1,
                               phaseshift=0,
                               laplace_var = ""):
@@ -529,7 +529,7 @@ def Calc_3thGen_V1_1_homogen(time_start=0, time_end=10e-9, time_points=1e3,
     PhaseError = Omega0_Div * Time_Delay
     
     # Correct Phase Delay by shift
-    PhaseError =  PhaseError - phaseshift*np.pi
+    PhaseError =  PhaseError - phaseshift
          
     Solution_InPhase = []
     Solution_AntiPhase = []
@@ -577,8 +577,7 @@ def Calc_3thGen_V1_1_homogen(time_start=0, time_end=10e-9, time_points=1e3,
 
 #############################################################################
 ###                 3th Generation, Homogen and Non-Linear PCB V1.1
-#############################################################################
-    
+#############################################################################   
 def Calc_3thGen_V1_1_homogen_nonlinear(time_start=0, time_end=10e-9, time_points=1e3,
                                        Div_N=16*32, phaseshift=0):
     #############################################################################    
@@ -631,21 +630,21 @@ def Calc_3thGen_V1_1_homogen_nonlinear(time_start=0, time_end=10e-9, time_points
     #############################################################################
     
     # transfer function of PD Input after PETF (Xpd) to CrossCoupling output in steady state
-    def  G_CPLG(X_PD, X_prime_PD=None, derivative=False):
+    def  G_CPLG(H_PD, H_prime_PD=None, derivative=False):
         
-        # fitment function parameters
-        slope = 2.1974e9
-        VCO_qp = 20.7923e9
-        Vprebias = 2.5
+        # fitment function parameters (from VCO_FreqVolt fit, ISCAS paper)
+        slope = 2.19447032e9#1.94522384e9
+        VCO_qp = 20.7923299e9 #21.2284874e9
+        Vprebias = 2.55
         
         # Calulate Network frequency based on normalized PD Output
         if not(derivative):
             
             # calculate PD output Voltage, based on H_PD and Offset of VCO Pre-Biasffset
-            A_PD = 2 * 0.8 * X_PD 
+            A_PD = 2 * 0.8 * H_PD 
             
-            # calcululate vco frequency with nonlinear function
-            f_VCO = 2*np.pi (VCO_qp + slope * np.sqrt(Vprebias + A_PD))
+            # calculate vco frequency with nonlinear function
+            f_VCO = 2 * np.pi *( VCO_qp + slope * np.sqrt(Vprebias + A_PD) )
             
             # calulate network frequency
             f_NET = f_VCO * 1/Div_N
@@ -653,27 +652,26 @@ def Calc_3thGen_V1_1_homogen_nonlinear(time_start=0, time_end=10e-9, time_points
             return f_NET
 
             
-        # Calulate stability based on normalized PD Output
+        # Calulate stability based on normalized PD Output (Both H_PD inputs are needed)
         else:
             
             # calculate PD output Voltage, based on H_PD and Offset of VCO Pre-Biasffset
-            A_PD = 2 * 0.8 * X_P
+            A_PD = 2 * 0.8 * H_PD
             
-            # use in steady state this voltage to calcululate vco sensitivity
-            # multiplied by inner function
-            K_VCO = X_prime_PD * (2*np.pi*slope) / (2*np.sqrt(Vprebias + A_PD))
+            # use in steady state this voltage to calcululate vco sensitivity (kvco)
+            K_VCO = (2*np.pi*slope) / (2*np.sqrt(Vprebias + A_PD))
  
-            # calulate network frequency sensitivity
-            f_NET = K_VCO* 1/Div_N
+            # calulate Coupling Gain based on non-linear frequency sensitivity
+            CPLG_Gain = H_prime_PD * K_VCO * 1/Div_N
             
-            return f_NET
+            return CPLG_Gain
 
     #############################################################################
     # Mean Phase for Time Delay
     PhaseError = Omega0_Div * Time_Delay
     
     # Correct Phase Delay by shift
-    PhaseError =  PhaseError - phaseshift*np.pi
+    PhaseError =  PhaseError - phaseshift
          
     Solution_InPhase = []
     Solution_AntiPhase = []
