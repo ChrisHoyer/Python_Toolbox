@@ -20,6 +20,7 @@
 # - String2List: Generates a List out of a csv with one line
 # - XYZ_Plot: generates 3D Plot (X,Y,Z) for i.e. waterfall diagrams
 # - Spectrum_Minimizer: Generates Mean and Max Spectrum from Dataset
+# - MovingFilter: Moving Average, Max, Min Filter
 #
 #   Autor: C. Hoyer (info@chrishoyer.de)
 #   Date: 22-09-2020
@@ -41,7 +42,7 @@ import re
 #############################################################################
 
 # Black and White Style
-monochrome = (cycler('color', ['k']) * cycler('linestyle', ['-', ':', '--']) * cycler('marker', ['^', '.','v']))
+monochrome = (cycler('color', ['k']) * cycler('linestyle', ['-', '--', ':']) * cycler('marker', ['^', '.','v', '<', '>']))
 
 #############################################################################
 ###         Import CSV File to a dictionary
@@ -875,7 +876,7 @@ def Linear_Plot(ax, Plot_list, X_label, Y_label, Legend=True, LegendLoc=0,
     if Xlim:
         ax.set_xlim([Xlim[0],Xlim[1]])
         
-    # xlimit    
+    # ylimit    
     if Ylim:
         ax.set_ylim([Ylim[0],Ylim[1]])
         
@@ -1071,7 +1072,7 @@ def Box_Plot(ax, XDataset , YDataset, X_label, Y_label, boxwidth=0,
 ###         Generate Plot for Frequency Domain / SemilogX
 #############################################################################
 def SemiLogX_Plot(ax, Plot_list, X_label, Y_label, Legend=True, LegendLoc=0, 
-                  TwinX=None, Ylim=None, XAutolim=True, fontsize=12, 
+                  TwinX=None, Ylim=None, Xlim=None,  XAutolim=True, fontsize=12, 
                   LegendAlpha=1, BlackWhite=False, XTicksLabel=None, **kwargs):
 #############################################################################  
     """
@@ -1087,7 +1088,8 @@ def SemiLogX_Plot(ax, Plot_list, X_label, Y_label, Legend=True, LegendLoc=0,
     LegendLoc               (option) legend location
     TwinX                   (option) primary Y-Axis
     Ylim                    (option) set Y-Axis limits
-    Xlim                    (option) set automatically X Limit
+    Xlim                    (option) set X-Axis limits
+    XAutolim                (option) set X-Axis limits automatically
     fontsize                (option) Fontsize of this Plot 
     LegendAlpha             (option) Transparency of legend box
     BlackWhite              (option) Use Black and White Preset
@@ -1189,12 +1191,16 @@ def SemiLogX_Plot(ax, Plot_list, X_label, Y_label, Legend=True, LegendLoc=0,
         ax.grid(which='major', alpha=1, linewidth=1.2)
       
     # =================================== 
-    # xlimit
+    # xlimit Automatic fit?
     if XAutolim:
         ax.set_xlim([np.min(plot[0]),np.max(plot[0])])
+    
+    # xlimit    
+    if Xlim:
+        ax.set_xlim([Xlim[0],Xlim[1]])       
 
     # =================================== 
-    # xlimit    a
+    # ylimit    
     if Ylim:
         ax.set_ylim([Ylim[0],Ylim[1]])
     
@@ -2042,3 +2048,42 @@ def Spectrum_Minimizer(Freq_Matrix, Mag_Matrix, nanvalue=-100, minmax=True,
     return_dict["Lock_Estimation"] = lock
     
     return return_dict
+
+
+#############################################################################
+##          Moving Filter
+#############################################################################
+def MovingFilter(Ydata, Xdata, N=3):
+############################################################################# 
+    """
+    Simple Moving Filter
+
+    paramters              description
+    =====================  =============================================:
+    Ydata                   Filter Y Data
+    Xdata                   Correspnding X Data
+    N                       (optional) Moving Filter Size
+    minmax                  
+    
+    return type
+       YData, XData as Dict
+                 
+    """  
+    # moving average
+    cumsum, moving_aves = [0], []
+    
+    for i, x in enumerate(Ydata, 1):
+        cumsum.append(cumsum[i-1] + x)
+        if i>=N:
+            moving_ave = (cumsum[i] - cumsum[i-N])/N
+            #can do stuff with moving_ave here
+            moving_aves.append(moving_ave)            
+ 
+    
+#############################################################################  	
+	# Return type
+    return_dict = {}
+    return_dict["YData"] = moving_aves             
+    return_dict["XData"] = Xdata[int((N-1)/2):-1*int((N-1)/2)]        
+    
+    return return_dict   
