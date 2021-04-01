@@ -761,7 +761,7 @@ def Linear_Plot(ax, Plot_list, X_label, Y_label, Legend=True, LegendLoc=0,
     paramters              description
     =====================  =============================================:
     ax                      plot axis
-    Plot_list               all X and Y Values also Labels (and arguments)
+    Plot_list               all X and Y Values also Labels (and matplotlib arguments)
     X_label                 X Axis Label and Unit (option: rescaling factor) (Engineering Package)
     Y_label                 Y Axis Label and Unit (option: rescaling factor)(Engineering Package)
     Legend                  (option) plot legend
@@ -771,7 +771,8 @@ def Linear_Plot(ax, Plot_list, X_label, Y_label, Legend=True, LegendLoc=0,
     Xlim                    (option) set X-Axis limits [X0,X1]
     XAutolim                (option) set automatically X Limit (bool)
     TicksEng                (option) Enable Engineering Ticks
-    XTicksLabel             (option) Number of Ticks between min and max
+    XTicksLabel             (option) Label only ever nth tick
+    fontsize                (option) Fontsize of the legend and ticks
     fontsize_label          (option) Fontsize of the axis labels
     legendcol               (option) Legend Columns
     yaxis_pad               (option) move label to y-axis (padding)
@@ -789,8 +790,8 @@ def Linear_Plot(ax, Plot_list, X_label, Y_label, Legend=True, LegendLoc=0,
         ...
         
         # Prepare
-        Xlabel = [YLabel, 'V']
-        Ylabel = [YLabel, 'V']
+        Xlabel = ["XLabel", 'V']
+        Ylabel = ["YLabel", 'V']
         Plot = [[XData, YData, "Label"], [XData, YData, "Label", 'linestyle=dashed'],...]   
         
         # Generate Plot
@@ -974,7 +975,7 @@ def Box_Plot(ax, XDataset , YDataset, X_label, Y_label, boxwidth=0,
         # Generate Plot
         plt.figure(figsize=(10,5))
         ax1 = plt.subplot(111)
-        basic.Linear_Plot(ax1, xdata, Xdata, Xlabel, Ylabel)  
+        basic.Linear_Plot(ax1, xdata, ydata, Xlabel, Ylabel)  
         plt.show()
    
     """        
