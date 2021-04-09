@@ -924,8 +924,8 @@ def Linear_Plot(ax, Plot_list, X_label, Y_label, Legend=True, LegendLoc=0,
         if grid:
             ax.minorticks_on()
             ax.grid(True, which='major')
-            ax.grid(which='minor', alpha=1, linestyle=':', linewidth=1)
-            ax.grid(which='major', alpha=1, linewidth=1.2)   
+            ax.grid(True, which='minor', alpha=1, linestyle=':', linewidth=1)
+            ax.grid(True, which='major', alpha=1, linewidth=1.2)   
         
     #retrn
     return ax
@@ -1188,8 +1188,8 @@ def SemiLogX_Plot(ax, Plot_list, X_label, Y_label, Legend=True, LegendLoc=0,
         # Generate new Grid
         ax.minorticks_on()
         ax.grid(True, which='major')
-        ax.grid(which='minor', alpha=1, linestyle=':', linewidth=1)
-        ax.grid(which='major', alpha=1, linewidth=1.2)
+        ax.grid(True, which='minor', alpha=1, linestyle=':', linewidth=1)
+        ax.grid(True, which='major', alpha=1, linewidth=1.2)  
       
     # =================================== 
     # xlimit Automatic fit?
