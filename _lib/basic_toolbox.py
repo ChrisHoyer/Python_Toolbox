@@ -752,8 +752,7 @@ def Linear_Plot(ax, Plot_list, X_label, Y_label, Legend=True, LegendLoc=0,
                 TwinX=None, Ylim=None, Xlim=None, XAutolim=True, fontsize=14,
                 TicksEng=True, XTicksLabel=None, legendcol=1,
                 fontsize_label=14, yaxis_pad=0, xaxis_pad=0, BlackWhite=False,
-                grid = True,
-                **kwargs):
+                grid = True, **kwargs):
 #############################################################################  
     """
     Prepares a X-Y linear plot
@@ -923,9 +922,9 @@ def Linear_Plot(ax, Plot_list, X_label, Y_label, Legend=True, LegendLoc=0,
         # Generate new Grid
         if grid:
             ax.minorticks_on()
-            ax.grid(True, which='major')
-            ax.grid(which='minor', alpha=1, linestyle=':', linewidth=1)
-            ax.grid(which='major', alpha=1, linewidth=1.2)   
+            ax.grid(which='major', alpha=1, linestyle='-',linewidth=1.2) 
+            ax.grid(which='minor', alpha=1, linestyle=':', linewidth=1)  
+
         
     #retrn
     return ax
@@ -1504,7 +1503,8 @@ def FindPoint_NextValue(XData, YData, XPoint, plot=False, **kwargs):
 #############################################################################
 def Digitalize_Data(data, clock, edge_trigger = 'rising',
                     high_val = 1, low_val = 0, trigger_val = 0.5,
-                    threshold_high = 2, threshold_low = 0.8, plot = False):
+                    threshold_high = 2, threshold_low = 0.8, plot = False,
+                    onlyDigi = False):
 #############################################################################  
     """
     Fits an higher order order polynom function against a set of data in regime 
@@ -1521,6 +1521,7 @@ def Digitalize_Data(data, clock, edge_trigger = 'rising',
     threshold_high          (optional) threshold high value
     threshold_low           (optional) threshold low value
     plot                    (optional) plot data for debug
+    onlyDigi                (optional) returns only data as logical data
     
     return type
        binary bit stream
@@ -1555,7 +1556,7 @@ def Digitalize_Data(data, clock, edge_trigger = 'rising',
             if analog_value >  threshold_high:
                 digital_array.append(high_val)
                 
-            elif analog_value < threshold_low:
+            elif analog_value <= threshold_low:
                 digital_array.append(low_val)
                 
             # out of range
@@ -1571,7 +1572,14 @@ def Digitalize_Data(data, clock, edge_trigger = 'rising',
         return [digital_array, conversion_errors]
     
 #############################################################################    
-            
+       
+    # Generate Digital Data
+    if onlyDigi:
+        return digitialize(data, high_val=high_val, 
+                           low_val=low_val,
+                           threshold_high=threshold_high, 
+                           threshold_low=threshold_low)
+        
     # Generate digital stream
     data = digitialize(data, high_val=high_val, low_val=low_val,
                                threshold_high=threshold_high, threshold_low=threshold_low)
