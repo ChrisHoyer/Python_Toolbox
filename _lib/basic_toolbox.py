@@ -749,10 +749,10 @@ def Linearization_Point(XData, YData, XPoint, Tolerance, num=100,
 ###         Generate Plot for Time Domain / Linear
 #############################################################################
 def Linear_Plot(ax, Plot_list, X_label, Y_label, Legend=True, LegendLoc=0,
-                TwinX=None, Ylim=None, Xlim=None, XAutolim=True, fontsize=14,
-                TicksEng=True, XTicksLabel=None, legendcol=1,
-                fontsize_label=14, yaxis_pad=0, xaxis_pad=0, BlackWhite=False,
-                grid = True, **kwargs):
+                TwinX=None, TwinY=None, TwinReuseTicks="BOTH",  Ylim=None, Xlim=None,
+                XAutolim=True, fontsize=14, TicksEng=True, XTicksLabel=None, 
+                legendcol=1,fontsize_label=14, yaxis_pad=0, xaxis_pad=0, 
+                BlackWhite=False, grid = True, **kwargs):
 #############################################################################  
     """
     Prepares a X-Y linear plot
@@ -765,7 +765,9 @@ def Linear_Plot(ax, Plot_list, X_label, Y_label, Legend=True, LegendLoc=0,
     Y_label                 Y Axis Label and Unit (option: rescaling factor)(Engineering Package)
     Legend                  (option) plot legend
     LegendLoc               (option) legend location
-    TwinX                   (option) primary Y-Axis
+    TwinX                   (option) secondary Y-Axis
+    TwinY                   (option) secondary X-Axis
+    TwinReuseTicks          (option) Methode of regenerating ticks (NONE | AX1 = use AX1 | BEST = fith both)
     Ylim                    (option) set Y-Axis limits [Y0,Y1]
     Xlim                    (option) set X-Axis limits [X0,X1]
     XAutolim                (option) set automatically X Limit (bool)
@@ -791,13 +793,20 @@ def Linear_Plot(ax, Plot_list, X_label, Y_label, Legend=True, LegendLoc=0,
         # Prepare
         Xlabel = ["XLabel", 'V']
         Ylabel = ["YLabel", 'V']
-        Plot = [[XData, YData, "Label"], [XData, YData, "Label", 'linestyle=dashed'],...]   
+        Plot = [[XData, YData, "Label"], [XData2, YData2, "Label", 'linestyle=dashed'],...]
+        
+        # or for loops just use
+        Plot.append([XData3, YData3, "Label"])
         
         # Generate Plot
         plt.figure(figsize=(7.5,12))
         ax1 = plt.subplot(111)
         basic.Linear_Plot(ax1, Plot, Xlabel, Ylabel)  
         plt.show()
+        
+        # Two Y Axis one plot (similar to X-Axis)
+        ax2 = ax1.twinx()
+        basic.Linear_Plot(ax2, Plot, Xlabel, Ylabel, TwinX=ax1)         
    
     """        
 #############################################################################   
@@ -898,28 +907,43 @@ def Linear_Plot(ax, Plot_list, X_label, Y_label, Legend=True, LegendLoc=0,
             if index % XTicksLabel != 0:
                 label.set_visible(False)
         
-  
-     # ===================================    
-    # Align both Y Axis to grid
-    if not(TwinX==None) and type(TwinX) == type(ax) and Legend:
-        
-        # Align Axis
-        Align_YAxis(ax,TwinX)
-        
+
+    # ===================================    
+    # Legend and grid for two axis
+    if not(TwinX==None) and type(TwinX) == type(ax):
+
         # include axis labels in single legend
         all_lines = TwinX.get_lines() + ax.get_lines()
         all_labels = [l.get_label() for l in all_lines]
         
-        # plot legend
-        TwinX.legend(all_lines, all_labels, framealpha=1, loc=LegendLoc)
+        if Legend:        
+            # plot legend
+            TwinX.legend(all_lines, all_labels, framealpha=1, loc=LegendLoc) 
         
+        # Align Axis
+        Align_YXAxis(ax, TwinX, AxisType="Y", Method=TwinReuseTicks)
+        
+    elif not(TwinY==None) and type(TwinY) == type(ax):
+ 
+        # include axis labels in single legend
+        all_lines = TwinY.get_lines() + ax.get_lines()
+        all_labels = [l.get_label() for l in all_lines]
+
+        if Legend:        
+            # plot legend
+            TwinY.legend(all_lines, all_labels, framealpha=1, loc=LegendLoc) 
+        
+        # Align Axis
+        Align_YXAxis(ax, TwinY, AxisType="X", Method=TwinReuseTicks)
+
+    # ===================================    
+    # grid and legend
     else:
         
         if Legend:
             # legend
             ax.legend(framealpha=1, loc=LegendLoc, fontsize=fontsize, ncol=legendcol)
-    
-        # Generate new Grid
+            
         if grid:
             ax.minorticks_on()
             ax.grid(which='major', alpha=1, linestyle='-',linewidth=1.2) 
@@ -1106,13 +1130,15 @@ def SemiLogX_Plot(ax, Plot_list, X_label, Y_label, Legend=True, LegendLoc=0,
         # Prepare
         Xlabel = [YLabel, 'V']
         Ylabel = [YLabel, 'V']
-        Plot = [[XData, YData, "Label",, 'linestyle=dashed']]    
+        Plot = [[XData, YData, "Label", 'linestyle=dashed']]    
         
         # Generate Plot
         plt.figure(figsize=(7.5,12))
         ax1 = plt.subplot(111)
         basic.Linear_Plot(ax1, Plot, X_label, Ylabel)  
         plt.show()
+        
+        # Similar to LinearPlot function
    
     """    
 
@@ -1168,7 +1194,7 @@ def SemiLogX_Plot(ax, Plot_list, X_label, Y_label, Legend=True, LegendLoc=0,
     if not(TwinX==None) and type(TwinX) == type(ax) and Legend:
         
         # Align Axis
-        Align_YAxis(ax,TwinX)
+        Align_YXAxis(ax, TwinX, AxisType="Y")
         
         # include axis labels in single legend
         all_lines = TwinX.get_lines() + ax.get_lines()
@@ -1369,7 +1395,7 @@ def Rectangle_Plot(ax, xCenter, xSpan, yCenter, ySpan, color='r', **kwargs):
 #############################################################################
 ###         Align two Y-axis
 #############################################################################
-def Align_YAxis(ax1, ax2):
+def Align_YXAxis(ax1, ax2, AxisType="Y", Method="NONE"):
 #############################################################################    
     """
    Align two Axis on the same Grid
@@ -1377,6 +1403,8 @@ def Align_YAxis(ax1, ax2):
     paramters              description
     =====================  =============================================:
     ax1,ax2                 axis object
+    AxisType                either "Y" or "X"
+    Method                  NONE | AX1 = use AX1 Ticks | BOTH = fith both
     
     return type
        two vectors for axis ticks
@@ -1415,44 +1443,75 @@ def Align_YAxis(ax1, ax2):
         return ax_roundto
     
 #############################################################################  
-
-    # get maximum number of ticks
-    max_ticks = max(len(ax1.get_yticks()),len(ax2.get_yticks()))
+         
+    if Method == "BOTH":
+        
+        # try to align both axis using 
+        if AxisType == "Y":
+            # get maximum number of ticks
+            max_ticks = max(len(ax1.get_yticks()),len(ax2.get_yticks()))
+                
+            # get axis distance between ticks
+            ax1_dy = ax1.get_ybound()[1] - ax1.get_ybound()[0]   
+            ax2_dy = ax2.get_ybound()[1] - ax2.get_ybound()[0]
             
-    # get axis scaling
-    ax1_dy = ax1.get_ybound()[1] - ax1.get_ybound()[0]   
-    ax2_dy = ax2.get_ybound()[1] - ax2.get_ybound()[0]  
+        elif  AxisType == "X":
+            # get maximum number of ticks
+            max_ticks = max(len(ax1.get_xticks()),len(ax2.get_xticks()))
+                
+            # get axis distance between ticks
+            ax1_dy = ax1.get_xbound()[1] - ax1.get_xbound()[0]   
+            ax2_dy = ax2.get_xbound()[1] - ax2.get_xbound()[0]
+         
+        # Roundto Number
+        ax1_roundto = Generate_RoundPoint(ax1_dy, max_ticks)
+        ax2_roundto = Generate_RoundPoint(ax2_dy, max_ticks)
+    
+        
+        if AxisType == "Y":     
+            # get axis bounds and scale
+            YBound_ax1 = [np.floor(ax1.get_ybound()[0]/ax1_roundto),
+                          np.ceil(ax1.get_ybound()[1]/ax1_roundto)]
+            YBound_ax2 = [np.floor(ax2.get_ybound()[0]/ax2_roundto),
+                          np.ceil(ax2.get_ybound()[1]/ax2_roundto)]
+    
+        elif  AxisType == "X":
+            # get axis bounds and scale
+            YBound_ax1 = [np.floor(ax1.get_xbound()[0]/ax1_roundto),
+                          np.ceil(ax1.get_xbound()[1]/ax1_roundto)]
+            YBound_ax2 = [np.floor(ax2.get_xbound()[0]/ax2_roundto),
+                          np.ceil(ax2.get_xbound()[1]/ax2_roundto)]  
+            
+        # get axis scaling and scale
+        ax1_dy = YBound_ax1[1] - YBound_ax1[0]   
+        ax2_dy = YBound_ax2[1] - YBound_ax2[0]
+        
+        # define starting points
+        ax1_start = YBound_ax1[0]
+        ax2_start = YBound_ax2[0]
+         
+        # Generate new Ticks for axis
+        ax1_ticks_new =  Generate_newTicks(ax1_dy, ax1_start, max_ticks)
+        ax2_ticks_new =  Generate_newTicks(ax2_dy, ax2_start, max_ticks)
+        
+        # reverse rescaling
+        ax1_ticks_new = ax1_ticks_new*ax1_roundto
+        ax2_ticks_new = ax2_ticks_new*ax2_roundto
 
-    # Roundto Number
-    ax1_roundto = Generate_RoundPoint(ax1_dy, max_ticks)
-    ax2_roundto = Generate_RoundPoint(ax2_dy, max_ticks)
-     
-    # get axis bounds and scale
-    YBound_ax1 = [np.floor(ax1.get_ybound()[0]/ax1_roundto),
-                  np.ceil(ax1.get_ybound()[1]/ax1_roundto)]
-    YBound_ax2 = [np.floor(ax2.get_ybound()[0]/ax2_roundto),
-                  np.ceil(ax2.get_ybound()[1]/ax2_roundto)]
-
-    # get axis scaling and scale
-    ax1_dy = YBound_ax1[1] - YBound_ax1[0]   
-    ax2_dy = YBound_ax2[1] - YBound_ax2[0]
-    
-    # define starting points
-    ax1_start = YBound_ax1[0]
-    ax2_start = YBound_ax2[0]
-     
-    # Generate new Ticks for axis
-    ax1_ticks_new =   Generate_newTicks(ax1_dy, ax1_start, max_ticks)
-    ax2_ticks_new =   Generate_newTicks(ax2_dy, ax2_start, max_ticks)
-    
-    # reverse rescaling
-    ax1_ticks_new = ax1_ticks_new*ax1_roundto
-    ax2_ticks_new = ax2_ticks_new*ax2_roundto
-    
-    # set ticks
-    ax1.set_yticks(ax1_ticks_new)
-    ax2.set_yticks(ax2_ticks_new)
-    
+    else:
+        #skip
+        return
+##############################
+        
+    if AxisType == "Y":    
+        # set ticks
+        ax1.set_yticks(ax1_ticks_new)
+        ax2.set_yticks(ax2_ticks_new)
+            
+    elif AxisType == "X":
+        # set ticks
+        ax1.set_xticks(ax1_ticks_new)
+        ax2.set_xticks(ax2_ticks_new)       
   
     # jump back    
     return
