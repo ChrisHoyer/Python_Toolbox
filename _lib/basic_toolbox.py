@@ -6,6 +6,7 @@
 # - FindPoint_FitFct: fits higher order Polynom against Dataset to find point
 # - Linearization_Point: linearization around one point
 # - Linear_Plot: linear plot function with automated labeling
+# - Polar_Plot: Polar plot function with automated labeling
 # - Box_Plot: Boxplots with automated labeling
 # - SemiLogX_Plot: semilog x plot function with automated labeling
 # - Vline_Plot: generates vertical line in plot with label
@@ -746,7 +747,7 @@ def Linearization_Point(XData, YData, XPoint, Tolerance, num=100,
     return [X_Lin, Y_Lin]
 
 #############################################################################
-###         Generate Plot for Time Domain / Linear
+###         Generate Linear Plot
 #############################################################################
 def Linear_Plot(ax, Plot_list, X_label, Y_label, Legend=True, LegendLoc=0,
                 TwinX=None, TwinY=None, TwinReuseTicks="BOTH",  Ylim=None, Xlim=None,
@@ -866,7 +867,7 @@ def Linear_Plot(ax, Plot_list, X_label, Y_label, Legend=True, LegendLoc=0,
         # search min and max x values
         x_limit_min = np.min(plot[0])
         x_limit_max = np.max(plot[0])
-        
+                
         # iterate all traces
         for trace in ax.get_lines():
             
@@ -897,7 +898,7 @@ def Linear_Plot(ax, Plot_list, X_label, Y_label, Legend=True, LegendLoc=0,
     # set font size label
     for item in ([ax.xaxis.label, ax.yaxis.label]):
         item.set_fontsize(fontsize_label)
-    
+
     # =================================== 
     # change XTick Label Position
     if XTicksLabel:
@@ -906,9 +907,7 @@ def Linear_Plot(ax, Plot_list, X_label, Y_label, Legend=True, LegendLoc=0,
         for (index,label) in enumerate(ax.xaxis.get_ticklabels()):
             if index % XTicksLabel != 0:
                 label.set_visible(False)
-        
-
-    # ===================================    
+            # ===================================    
     # Legend and grid for two axis
     if not(TwinX==None) and type(TwinX) == type(ax):
 
@@ -936,6 +935,7 @@ def Linear_Plot(ax, Plot_list, X_label, Y_label, Legend=True, LegendLoc=0,
         # Align Axis
         Align_YXAxis(ax, TwinY, AxisType="X", Method=TwinReuseTicks)
 
+
     # ===================================    
     # grid and legend
     else:
@@ -948,12 +948,163 @@ def Linear_Plot(ax, Plot_list, X_label, Y_label, Legend=True, LegendLoc=0,
             ax.minorticks_on()
             ax.grid(which='major', alpha=1, linestyle='-',linewidth=1.2) 
             ax.grid(which='minor', alpha=1, linestyle=':', linewidth=1)  
+
         
     #retrn
     return ax
 
+
 #############################################################################
 ###         Generate Plot for Time Domain / Linear
+#############################################################################
+def Polar_Plot(ax, Plot_list, X_label, Y_label, Legend=True, LegendLoc=0,
+                deg2rad = True, fontsize=14, TicksEng=True, XTicksLabel=None, 
+                legendcol=1,fontsize_label=14, yaxis_pad=0, xaxis_pad=0, 
+                BlackWhite=False, grid = True, **kwargs):
+#############################################################################  
+    """
+    Prepares a X-Y linear plot
+
+    paramters              description
+    =====================  =============================================:
+    ax                      plot axis
+    Plot_list               all X and Y Values also Labels (and matplotlib arguments)
+    X_label                 X Axis Label and Unit (option: rescaling factor) (Engineering Package)
+    Y_label                 Y Axis Label and Unit (option: rescaling factor)(Engineering Package)
+    Legend                  (option) plot legend
+    LegendLoc               (option) legend location
+    TicksEng                (option) Enable Engineering Ticks
+    XTicksLabel             (option) Label only ever nth tick
+    deg2rad                 (option) Convert Angle from degree into radians
+    fontsize                (option) Fontsize of the legend and ticks
+    fontsize_label          (option) Fontsize of the axis labels
+    legendcol               (option) Legend Columns
+    yaxis_pad               (option) move label to y-axis (padding)
+    xaxis_pad               (option) move label to x-axis (padding)    
+    BlackWhite              (option) Use Black and White Preset
+    grid                    (option) Use grid
+    
+    return type
+       None  (writes directly into axis)
+      
+    Example:
+        
+        import basic_toolbox as basic
+        
+        ...
+        
+        # Prepare
+        Xlabel = ["XLabel", 'V']
+        Ylabel = ["YLabel", 'V']
+        Plot = [[XData, YData, "Label"], [XData2, YData2, "Label", 'linestyle=dashed'],...]
+        
+        # or for loops just use
+        Plot.append([XData3, YData3, "Label"])
+        
+        # Generate Plot
+        plt.figure(figsize=(7.5,12))
+        fig, ax1 = plt.subplots(subplot_kw={'projection': 'polar'})
+        basic.Linear_Plot(ax1, Plot, Xlabel, Ylabel)  
+        plt.show()
+        
+        # Two Y Axis one plot (similar to X-Axis)
+        ax2 = ax1.twinx()
+        basic.Linear_Plot(ax2, Plot, Xlabel, Ylabel, TwinX=ax1)         
+   
+    """        
+#############################################################################   
+
+    # BlackWhite Default Settings
+    if BlackWhite:
+        ax.set_prop_cycle(monochrome)
+        
+        
+    for index in range(len(Plot_list)):
+        
+        plot = Plot_list[index]
+        
+        # check dimension of X-Axis if whole trace
+        x_plot = plot[0]
+        
+        # only one marker?
+        if np.size(x_plot) > 1:
+            y_plot = plot[1][0:np.size(x_plot)]
+        else:
+            y_plot = plot[1]
+        
+        # emtpy argument list
+        userargs = {}
+                
+        # insert plotting arguments
+        if len(plot) >= 4:
+            userargs = dict(e.split('=') for e in plot[3].split(', '))
+            
+        # Check if userargs have only numberic values
+        for userarg in userargs:
+            if userargs[userarg].isdigit():
+                userargs[userarg] = int(userargs[userarg])
+                
+        # rescaling of the y-axis required?
+        if len(Y_label) == 3:
+            y_plot = [y_data*Y_label[2] for y_data in y_plot]
+ 
+        # rescaling of the x-axis required?
+        if len(X_label) == 3:
+            x_plot = [x_data*X_label[2] for x_data in x_plot]
+            
+        # xaxis (angle) from degree to radians
+        if deg2rad:
+            x_plot = np.deg2rad(x_plot)
+            
+        ax.plot(x_plot, y_plot, label=plot[2], **userargs)
+        
+    # label
+    #ax.set_ylabel(Y_label[0], labelpad=yaxis_pad)
+    #ax.set_xlabel(X_label[0], labelpad=xaxis_pad)
+
+    
+    # ticks in engineering formatter
+    if TicksEng:
+        ax.yaxis.set_major_formatter(tck.EngFormatter(unit=Y_label[1]))
+    
+
+    # set font sizes (all)
+    for item in ([ax.title, ax.xaxis.label, ax.yaxis.label] +
+             ax.get_xticklabels() + ax.get_yticklabels()):
+        item.set_fontsize(fontsize)
+    
+    # set font size label
+    for item in ([ax.xaxis.label, ax.yaxis.label]):
+        item.set_fontsize(fontsize_label)
+
+    # =================================== 
+    # change XTick Label Position
+    if XTicksLabel:
+        
+        # change visibility of each Nth tick
+        for (index,label) in enumerate(ax.xaxis.get_ticklabels()):
+            if index % XTicksLabel != 0:
+                label.set_visible(False)
+
+
+    # ===================================    
+    # grid and legend
+    else:
+        
+        if Legend:
+            # legend
+            ax.legend(framealpha=1, loc=LegendLoc, fontsize=fontsize, ncol=legendcol)
+            
+        if grid:
+            ax.minorticks_on()
+            ax.grid(which='major', alpha=1, linestyle='-',linewidth=1.2) 
+            ax.grid(which='minor', alpha=1, linestyle=':', linewidth=1)  
+
+        
+    #retrn
+    return ax
+#############################################################################
+###         Generate statistic Boxplot
 #############################################################################
 def Box_Plot(ax, XDataset , YDataset, X_label, Y_label, boxwidth=0,
              Legend="", LegendLoc=0, fontsize_label=12, yaxis_pad=0, xaxis_pad=0,
@@ -2141,7 +2292,7 @@ def MovingFilter(Ydata, Xdata, N=3):
     
     for i, x in enumerate(Ydata, 1):
         cumsum.append(cumsum[i-1] + x)
-        if i>=N:
+        if i >= N:
             moving_ave = (cumsum[i] - cumsum[i-N])/N
             #can do stuff with moving_ave here
             moving_aves.append(moving_ave)            
