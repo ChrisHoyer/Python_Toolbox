@@ -751,8 +751,8 @@ def Linearization_Point(XData, YData, XPoint, Tolerance, num=100,
 #############################################################################
 def Linear_Plot(ax, Plot_list, X_label, Y_label, Legend=True, LegendLoc=0,
                 TwinX=None, TwinY=None, TwinReuseTicks="BOTH",  Ylim=None, Xlim=None,
-                XAutolim=True, fontsize=14, TicksEng=True, XTicksLabel=None, 
-                legendcol=1,fontsize_label=14, yaxis_pad=0, xaxis_pad=0, 
+                XAutolim=True, fontsize=14, TicksEng=True, XTicksLabel=None,
+                YTicksLabel=None,legendcol=1,fontsize_label=14, yaxis_pad=0, xaxis_pad=0, 
                 BlackWhite=False, grid = True, **kwargs):
 #############################################################################  
     """
@@ -773,7 +773,8 @@ def Linear_Plot(ax, Plot_list, X_label, Y_label, Legend=True, LegendLoc=0,
     Xlim                    (option) set X-Axis limits [X0,X1]
     XAutolim                (option) set automatically X Limit (bool)
     TicksEng                (option) Enable Engineering Ticks
-    XTicksLabel             (option) Label only ever nth tick
+    XTicksLabel             (option) Label only ever nth tick on X
+    YTicksLabel             (option) Label only ever nth tick on Y
     fontsize                (option) Fontsize of the legend and ticks
     fontsize_label          (option) Fontsize of the axis labels
     legendcol               (option) Legend Columns
@@ -907,7 +908,16 @@ def Linear_Plot(ax, Plot_list, X_label, Y_label, Legend=True, LegendLoc=0,
         for (index,label) in enumerate(ax.xaxis.get_ticklabels()):
             if index % XTicksLabel != 0:
                 label.set_visible(False)
-            # ===================================    
+
+    # change YTick Label Position
+    if YTicksLabel:
+        
+        # change visibility of each Nth tick
+        for (index,label) in enumerate(ax.yaxis.get_ticklabels()):
+            if index % XTicksLabel != 0:
+                label.set_visible(False)                
+                
+    # ===================================    
     # Legend and grid for two axis
     if not(TwinX==None) and type(TwinX) == type(ax):
 
@@ -1509,7 +1519,7 @@ def Hline_Plot(ax, yValue, yLabel, xDistance=0.4, xPos='right', color='r',
 #############################################################################
 ###         Generate Vertical Line with Label
 #############################################################################
-def Rectangle_Plot(ax, xCenter, xSpan, yCenter, ySpan, color='r', **kwargs):
+def Rectangle_Plot(ax, xCenter, xSpan, yCenter, ySpan, color='r', StickyLimits=True, **kwargs):
 #############################################################################  
     """
     Generates Vertical Line in Plot
@@ -1522,7 +1532,8 @@ def Rectangle_Plot(ax, xCenter, xSpan, yCenter, ySpan, color='r', **kwargs):
     yCenter                 Rectangle y-axis center
     ySpan                   Rectangle y-axis span
     color                   color of line and text (default=red)
-    
+    StickyLimits            (optional) Stick to old YLim and XLim (first plot data)
+
     return type
        None  (writes directly into axis)
        
@@ -1532,6 +1543,11 @@ def Rectangle_Plot(ax, xCenter, xSpan, yCenter, ySpan, color='r', **kwargs):
 
 #############################################################################  
 
+    # get old limits
+    if StickyLimits:
+        old_xlim = ax.get_xlim()
+        old_ylim = ax.get_ylim() 
+
     # calculate startpoints
     xstart = xCenter - xSpan/2
     ystart = yCenter - ySpan/2
@@ -1539,7 +1555,12 @@ def Rectangle_Plot(ax, xCenter, xSpan, yCenter, ySpan, color='r', **kwargs):
     # generate Rectangle
     rect = patches.Rectangle((xstart,ystart),xSpan, ySpan, facecolor=color)          
     ax.add_patch(rect) 
-    
+
+    # set old limits
+    if StickyLimits:
+        ax.set_xlim([old_xlim[0],old_xlim[1]])
+        ax.set_ylim([old_ylim[0],old_ylim[1]])
+        
     # jump back
     return
     
