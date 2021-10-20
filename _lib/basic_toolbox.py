@@ -99,25 +99,30 @@ def CSV2Dict(csv_file, delimiter=';', complexdelimiter='/',
         
         # remove leading or tailing whitespaces
         cell_content = v.strip()
-        
+                
         # only plain Number (normal or scientific)
         try:
             float(cell_content)
             Current_State = States[1]
                 
         except:
-            
-            # Data is Array?
-            if (type(cell_content) is str) & (cell_content[0] == '[') & (cell_content[-1] == ']'):
-                 Current_State = States[4]                     
-                                  
+             
+            # Row with Text and empty
+            if (type(cell_content) is str) & (cell_content == "") :
+                 Current_State = States[3]  
+                 
             # Row with Text and not empty?
             elif (type(cell_content) is str) & (cell_content != "") :
-                 Current_State = States[3]                     
-                
+                 Current_State = States[3]  
+                 
+            # Data is Array?
+            elif (type(cell_content) is str) & (cell_content[0] == '[') & (cell_content[-1] == ']'):
+                 Current_State = States[4]                     
+ 
             # Contains two values? -> Complex
             elif len(cell_content.split(complexdelimiter)) == 2:
                 Current_State = States[2]
+
                 
         return Current_State
 
@@ -836,7 +841,8 @@ def Linear_Plot(ax, Plot_list, X_label, Y_label, Legend=True, LegendLoc=0,
                 
         # insert plotting arguments
         if len(plot) >= 4:
-            userargs = dict(e.split('=') for e in plot[3].split(', '))
+            args = plot[3].strip().replace(" ", "")
+            userargs = dict(e.split('=') for e in args.split(','))
             
         # Check if userargs have only numberic values
         for userarg in userargs:
@@ -1047,7 +1053,8 @@ def Polar_Plot(ax, Plot_list, X_label, Y_label, Legend=True, LegendLoc=0,
                 
         # insert plotting arguments
         if len(plot) >= 4:
-            userargs = dict(e.split('=') for e in plot[3].split(', '))
+            args = plot[3].strip().replace(" ", "")
+            userargs = dict(e.split('=') for e in args.split(','))
             
         # Check if userargs have only numberic values
         for userarg in userargs:
@@ -1327,7 +1334,8 @@ def SemiLogX_Plot(ax, Plot_list, X_label, Y_label, Legend=True, LegendLoc=0,
                 
         # insert plotting arguments
         if len(plot) >= 4:
-            userargs = dict(e.split('=') for e in plot[3].split(', '))
+            args = plot[3].strip().replace(" ", "")
+            userargs = dict(e.split('=') for e in args.split(','))
             
         # Check if userargs have only numberic values
         for userarg in userargs:
