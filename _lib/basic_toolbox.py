@@ -22,9 +22,11 @@
 # - XYZ_Plot: generates 3D Plot (X,Y,Z) for i.e. waterfall diagrams
 # - Spectrum_Minimizer: Generates Mean and Max Spectrum from Dataset
 # - MovingFilter: Moving Average, Max, Min Filter
+# - printProgressBar: Print progress Bar in Console
+# - EngNot: Engineering Notation (Si-Prefix)
 #
 #   Autor: C. Hoyer (info@chrishoyer.de)
-#   Date: 22-09-2020
+#   Date: 06-11-2021
 #############################################################################
 
 from scipy.optimize import curve_fit
@@ -2334,3 +2336,71 @@ def MovingFilter(Ydata, Xdata, N=3):
     return_dict["XData"] = Xdata[int((N-1)/2):-1*int((N-1)/2)]        
     
     return return_dict   
+
+#############################################################################
+###        Print Progressbar
+#############################################################################
+def printProgressBar (iteration, total, prefix = "Progress", suffix = "Complete",
+                      decimals = 1, length = 100, fill = '█', printEnd = "\r"):
+    """
+    Call in a loop to create terminal progress bar
+    Based on: https://stackoverflow.com/questions/3173320/text-progress-bar-in-the-console
+    @params:
+        iteration   - Required  : current iteration (Int)
+        total       - Required  : total iterations (Int)
+        prefix      - Optional  : prefix string (Str)
+        suffix      - Optional  : suffix string (Str)
+        decimals    - Optional  : positive number of decimals in percent complete (Int)
+        length      - Optional  : character length of bar (Int)
+        fill        - Optional  : bar fill character (Str)
+        printEnd    - Optional  : end character (e.g. "\r", "\r\n") (Str)
+    """
+    percent = ("{0:." + str(decimals) + "f}").format(100 * (iteration / float(total)))
+    filledLength = int(length * iteration // total)
+    bar = fill * filledLength + '-' * (length - filledLength)
+    print(f'\r{prefix} |{bar}| {percent}% {suffix}', end = printEnd)
+    # Print New Line on Complete
+    if iteration == total: 
+        print()
+  
+ #############################################################################
+ ###        Engineering Notation
+ #############################################################################       
+def EngNot( x, sig_figs=3, si=True):
+    """
+    Returns float/int value <x> formatted in a simplified engineering format -
+    using an exponent that is a multiple of 3.
+
+    sig_figs: number of significant figures
+
+    si: if true, use SI suffix for exponent, e.g. k instead of e3, n instead of
+    e-9 etc.
+    Based on https://stackoverflow.com/questions/17973278/python-decimal-engineering-notation-for-mili-10e-3-and-micro-10e-6
+    """
+    x = float(x)
+    sign = ''
+    if x < 0:
+        x = -x
+        sign = '-'
+    if x == 0:
+        exp = 0
+        exp3 = 0
+        x3 = 0
+    else:
+        exp = int(np.floor(np.log10( x )))
+        exp3 = exp - ( exp % 3)
+        x3 = x / ( 10 ** exp3)
+        x3 = round( x3, -int( np.floor(np.log10( x3 )) - (sig_figs-1)) )
+        if x3 == int(x3): # prevent from displaying .0
+            x3 = int(x3)
+
+    if si and exp3 >= -24 and exp3 <= 24 and exp3 != 0:
+        exp3_text = 'yzafpnum kMGTPEZY'[ exp3 // 3 + 8]
+    elif exp3 == 0:
+        exp3_text = ''
+    else:
+        exp3_text = 'e%s' % exp3
+
+    return ( '%s%s%s') % ( sign, x3, exp3_text)
+    
+  

@@ -24,6 +24,7 @@ Major focus on plotting and import
 - FindPoint_FitFct: fits higher order Polynom against Dataset to find point
 - Linearization_Point: linearization around one point
 - Linear_Plot: linear plot function with automated labeling
+- Polar_Plot: Polar plot function with automated labeling
 - Box_Plot: Boxplots with automated labeling
 - SemiLogX_Plot: semilog x plot function with automated labeling
 - Vline_Plot: generates vertical line in plot with label
@@ -38,6 +39,9 @@ Major focus on plotting and import
 - String2List: Generates a List out of a csv with one line
 - XYZ_Plot: generates 3D Plot (X,Y,Z) for i.e. waterfall diagrams
 - Spectrum_Minimizer: Generates Mean and Max Spectrum from Dataset
+- MovingFilter: Moving Average, Max, Min Filter
+- printProgressBar: Print progress Bar in Console
+- EngNot: Engineering Notation (Si-Prefix)
 
 ### ControlTheory_Toolbox
 Major fucus on control theorie and plotting
@@ -53,12 +57,11 @@ Major fucus on control theorie and plotting
 ### SLL_Toolbox
 Major Focus on state-locked-loops
 
- - Fnet_Bi2N_Stab: Simple Network in Laplace with two bidirectional coupled nodes to Calc Global Freq
- - Fnet_Bi2N_Stab_NonLinear: Nonlinear Network in Laplace with two bidirectional coupled nodes to Calc Global Freq
+ - Net_2Mutually: Simple Network in Laplace with two bidirectional coupled nodes to Calc Global Freq
  
 Prototype Model Calc:
- - Calc_3thGen_V1_1_homogen: Calculates important Values for Steady State Analysis
- - Calc_3thGen_V1_1_homogen_nonlinear: Calculates important Values for Steady State Analysis (nonlinear)
+ - Calc_2Cplg_linear: Calculates important Values for Steady State Analysis
+ - Calc_2Cplg_nonlinear: Calculates important Values for Steady State Analysis (nonlinear)
 
 ### Mapping_Toolbox
 Major focus on WaferMapping:
