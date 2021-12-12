@@ -1705,8 +1705,7 @@ def Hline_Plot(ax, yValue, yLabel, xDistance=0.4, xPos='right', color='r',
 ###         Generate Vertical Line with Label
 #############################################################################
 def Rectangle_Plot(ax, xCenter, xSpan, yCenter, ySpan,
-                   fullSpanY=False,
-                   color='r', StickyLimits=True, **kwargs):
+                   fullSpanY=False, StickyLimits=True, **kwargs):
 #############################################################################  
     """
     Generates Vertical Line in Plot
@@ -1718,7 +1717,6 @@ def Rectangle_Plot(ax, xCenter, xSpan, yCenter, ySpan,
     xSpan                   Rectangle x-axis span
     yCenter                 Rectangle y-axis center
     ySpan                   Rectangle y-axis span
-    color                   color of line and text (default=red)
     StickyLimits            (optional) Stick to old YLim and XLim (first plot data)
 
     return type
@@ -1737,13 +1735,13 @@ def Rectangle_Plot(ax, xCenter, xSpan, yCenter, ySpan,
     # calculate startpoints
     xstart = xCenter - xSpan/2
     ystart = yCenter - ySpan/2
-    
+        
     if fullSpanY:
         ystart = min(old_ylim)
         ySpan = old_ylim[1] - old_ylim[0]
 
     # generate Rectangle
-    rect = patches.Rectangle((xstart,ystart),xSpan, ySpan, facecolor=color)          
+    rect = patches.Rectangle((xstart,ystart),xSpan, ySpan, **kwargs)          
     ax.add_patch(rect) 
 
     # set old limits

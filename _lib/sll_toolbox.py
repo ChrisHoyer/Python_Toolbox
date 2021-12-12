@@ -248,7 +248,7 @@ def Net_2Mutually(phase_delay, omega0_div, G_CPLG, variable,
 #############################################################################  
     
     # Export no Values:
-    return_var["Nyquist_Gain"] =  float("NaN")  
+    return_var["Nyquist_Point"] =  float("NaN")  
     
     # return Nyquist Calculation
     if debug_return:
@@ -287,22 +287,16 @@ def Net_2Mutually(phase_delay, omega0_div, G_CPLG, variable,
         # Only one Value? Or no Max Value
         try:
             
-            # Remove the first 100 points (near Nyquist Point) and get abs value
-            Imag_Abs = np.abs(np.imag(Nyquist_Calc))[Nyquist_Neglect:]
+            # Find Entry Point in Quadrant 1, where Imag and Real Part is positive
+            index_NyquistPoint_Q1 = np.where((np.real(Nyquist_Calc) > 0) & (np.imag(Nyquist_Calc) > 0))
+            index_NyquistPoint_Q1 = np.min(index_NyquistPoint_Q1)
         
-            # Find Point index where Imaginary Part is Zero (< Tolerance)
-            Imag_Zero_index = np.where(Imag_Abs < nyquist_tolerance)[0]
-    
-            # get corresponding real part
-            RealParts = np.real(Nyquist_Calc)[Imag_Zero_index]
-            MaxReal_index = np.argmax(RealParts)
+            # Find Values, where the imag part is close to zero
+            index_NyquistPoint = np.argmin(np.abs(np.imag(Nyquist_Calc[index_NyquistPoint_Q1:-1])))
         
-            # get Peak index
-            NyquistPoint_index = Imag_Zero_index[MaxReal_index] 
-        
-            # Get Max Peak of realpart, when imaginary part is near zero       
-            return_var["Nyquist_Gain"] =  np.real(Nyquist_Calc[NyquistPoint_index])
-            
+            # Save Nyquist Point and Distance from Real Part to 1
+            return_var["Nyquist_Point"] = Nyquist_Calc[index_NyquistPoint_Q1+index_NyquistPoint]
+
         except:
                 
             #print("An exception occurred")
@@ -322,8 +316,9 @@ def Net_2Mutually(phase_delay, omega0_div, G_CPLG, variable,
 def Calc_2Cplg_linear(time_start=0, time_end=10e-9, time_points=1e3,
                       VCO_freq0 = 2*np.pi*24.25e9,
                       Div_N=16*32, K_VCO=2*np.pi*757.47e6,
-                      K_PD = 1.6, K_LF = 1,
-                      fb_phase = 0 ):
+                      K_PD = 1.6, K_LF = 1, fb_phase = 0,  
+                      s = sympy.Symbol('s'), Nqy_freq = np.linspace(1e3, 100e6, int(1e3)),
+                      Nqy_skip = 10):
     #############################################################################    
     """
     Simple Network of two coupled PLL System in Laplace Domain with default values from
@@ -339,26 +334,33 @@ def Calc_2Cplg_linear(time_start=0, time_end=10e-9, time_points=1e3,
     Div_N                   Divider Value (default: 16*32)
     K_VCO                   VCO Sensitivity (Hz/V) (default: 757e6)
     K_PD                    PD Sensitivity (V/pi) (default: 1.6)
-    K_LF                    Loop Filter Gain (default: 1, no laplace)
+    K_LF                    Loop Filter Function (default: 1, no laplace)
+    s                       Laplace Variable (default: "s")
+    Nqy_freq                Frequencies for which Laplace is calculated
+    Nqy_skip                Time Delays for which the Nyquist Calulation is skipped
     
     fb_phase               (optionally) Feedback Phase
     """
     #############################################################################
     
     # Some Infos
-    print("\033[34;1m" + "Simulation of two coupled Oscillators (Linearized)")
-    print("\033[34;1m" + "-> Starting Time {}s to {}s using {} points".format(basic.EngNot(time_start), basic.EngNot(time_end), basic.EngNot(time_points)))
-    print("\033[34;1m" + "-> Closed Loop Freq. {}Hz and Division by {}".format(basic.EngNot(VCO_freq0/(2*np.pi)), Div_N))
-    print("\033[34;1m" + "-> Sensitivity of VCO {}Hz/V and Phase-Detector {}V/pi\033[0m".format(basic.EngNot(K_VCO/(2*np.pi)),basic. EngNot(K_PD)))
+    print("\033[34;1m" + "Simulation of two coupled Oscillators (without nonlinearity)")
+    print("\033[34;1m" + "-> Sweep Time-delay between {}s to {}s with {} points".format(basic.EngNot(time_start), 
+                                                                                        basic.EngNot(time_end), 
+                                                                                        basic.EngNot(time_points)))
+    print("\033[34;1m" + "-> Free running closed Loop Freq. {}Hz and Division by {}".format(basic.EngNot(VCO_freq0/(2*np.pi)),
+                                                                                            Div_N))
+    print("\033[34;1m" + "-> Sensitivity of VCO {}Hz/V and Phase-Detector {}V/pi".format(basic.EngNot(K_VCO/(2*np.pi)),
+                                                                                         basic.EngNot(K_PD)))
+    print("\033[34;1m" + "-> Perform Nyquist Calulations between {}Hz to {}Hz with {} points\033[0m".format(basic.EngNot(Nqy_freq[0]),
+                                                                                                            basic.EngNot(Nqy_freq[-1]), 
+                                                                                                            basic.EngNot(len(Nqy_freq))))
     
     start_time = time.time()
     
     #############################################################################
     #           Variables of PLL System and Network Analysis (Default Values)
     #############################################################################
-    
-    # laplace variable
-    s = sympy.Symbol('s')
     
     # Quiescent PLL Freq
     Omega0_Div = VCO_freq0/Div_N
@@ -369,9 +371,7 @@ def Calc_2Cplg_linear(time_start=0, time_end=10e-9, time_points=1e3,
     # PD Phase-Error Transfer Function
     coupling_function = "triangle"
     
-     # Frequency Axis for Nyquist Plot
-    Nqy_freq = np.linspace(1e3, 100e6, int(1e3))
-    
+      
     #############################################################################
     #           Calculate PLL Solution and Network Stability
     #############################################################################
@@ -393,7 +393,7 @@ def Calc_2Cplg_linear(time_start=0, time_end=10e-9, time_points=1e3,
     for index, PhaseDelay in enumerate(PhaseError): 
        
         # calculate every 100th network stability
-        calc_networkstab = True if (index%150 == 0) else False
+        calc_networkstab = True if (index%Nqy_skip == 0) else False
         
         # calculate in-phase
         Solution_InPhase.append(Net_2Mutually(PhaseDelay, Omega0_Div, G_CPLG, s,
