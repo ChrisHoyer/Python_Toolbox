@@ -248,12 +248,12 @@ def Net_2Mutually(phase_delay, omega0_div, G_CPLG, variable,
 #############################################################################  
     
     # Export no Values:
-    return_var["Nyquist_Point"] =  float("NaN")  
+    return_var["Nyquist_Point"] =  float("NaN") 
+    return_var["Nyquist_Point_Freq"] =  float("NaN") 
     
     # return Nyquist Calculation
-    if debug_return:
-        return_var["Nyquist_Solution"] = float("NaN")
-        return_var["Nyquist_Freq"] = float("NaN")
+    return_var["Nyquist_Solution"] = float("NaN")
+    return_var["Nyquist_Freq"] = float("NaN")
 
             
     # Calculate Network Stability
@@ -280,27 +280,21 @@ def Net_2Mutually(phase_delay, omega0_div, G_CPLG, variable,
                                                variable=variable)
         
         # return Nyquist Calculation
-        if debug_return:
-            return_var["Nyquist_Solution"] = Nyquist_Calc
-            return_var["Nyquist_Freq"] = Nyquist_Omega*scaletoHz
+        return_var["Nyquist_Solution"] = Nyquist_Calc
+        return_var["Nyquist_Freq"] = Nyquist_Omega*scaletoHz*1/1j
                   
-        # Only one Value? Or no Max Value
-        try:
+        # Find Entry Point in Quadrant 1, where Imag and Real Part is positive
+        index_NyquistPoint_Q1 = np.where((np.real(Nyquist_Calc) > 0) & (np.imag(Nyquist_Calc) > 0))
+        index_NyquistPoint_Q1 = np.min(index_NyquistPoint_Q1)
+        
+        # Find Values, where the imag part is close to zero
+        index_NyquistPoint = np.argmin(np.abs(np.imag(Nyquist_Calc[index_NyquistPoint_Q1:-1])))
+        
+        # Save Nyquist Point and Frequency from Real Part to 1
+        return_var["Nyquist_Point"] = Nyquist_Calc[index_NyquistPoint_Q1+index_NyquistPoint]
+        
+        return_var["Nyquist_Point_Freq"] = Nyquist_Omega[index_NyquistPoint_Q1+index_NyquistPoint]*scaletoHz*1/1j
             
-            # Find Entry Point in Quadrant 1, where Imag and Real Part is positive
-            index_NyquistPoint_Q1 = np.where((np.real(Nyquist_Calc) > 0) & (np.imag(Nyquist_Calc) > 0))
-            index_NyquistPoint_Q1 = np.min(index_NyquistPoint_Q1)
-        
-            # Find Values, where the imag part is close to zero
-            index_NyquistPoint = np.argmin(np.abs(np.imag(Nyquist_Calc[index_NyquistPoint_Q1:-1])))
-        
-            # Save Nyquist Point and Distance from Real Part to 1
-            return_var["Nyquist_Point"] = Nyquist_Calc[index_NyquistPoint_Q1+index_NyquistPoint]
-
-        except:
-                
-            #print("An exception occurred")
-            pass
             
     return return_var
 
