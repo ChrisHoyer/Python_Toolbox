@@ -274,26 +274,29 @@ def Net_2Mutually(phase_delay, omega0_div, G_CPLG, variable,
         
         # Calculate Nyquist Frequency Span
         Nyquist_Omega = 2j * np.pi * Nyquist_Freq
+         
+        try:
+            # Nyquist Plot with Complex return
+            Nyquist_Calc = ctrl.Extract_Sympy_1Var(G_NET, Nyquist_Omega,
+                                                   variable=variable)
+            # return Nyquist Calculation
+            return_var["Nyquist_Solution"] = Nyquist_Calc
+            return_var["Nyquist_Freq"] = Nyquist_Omega*scaletoHz
+                      
+            # Find Entry Point in Quadrant 1, where Imag and Real Part is positive
+            index_NyquistPoint_Q1 = np.where((np.real(Nyquist_Calc) > 0) & (np.imag(Nyquist_Calc) > 0))
+            index_NyquistPoint_Q1 = np.min(index_NyquistPoint_Q1)
             
-        # Nyquist Plot with Complex return
-        Nyquist_Calc = ctrl.Extract_Sympy_1Var(G_NET, Nyquist_Omega,
-                                               variable=variable)
-        
-        # return Nyquist Calculation
-        return_var["Nyquist_Solution"] = Nyquist_Calc
-        return_var["Nyquist_Freq"] = Nyquist_Omega*scaletoHz*1/1j
-                  
-        # Find Entry Point in Quadrant 1, where Imag and Real Part is positive
-        index_NyquistPoint_Q1 = np.where((np.real(Nyquist_Calc) > 0) & (np.imag(Nyquist_Calc) > 0))
-        index_NyquistPoint_Q1 = np.min(index_NyquistPoint_Q1)
-        
-        # Find Values, where the imag part is close to zero
-        index_NyquistPoint = np.argmin(np.abs(np.imag(Nyquist_Calc[index_NyquistPoint_Q1:-1])))
-        
-        # Save Nyquist Point and Frequency from Real Part to 1
-        return_var["Nyquist_Point"] = Nyquist_Calc[index_NyquistPoint_Q1+index_NyquistPoint]
-        
-        return_var["Nyquist_Point_Freq"] = Nyquist_Omega[index_NyquistPoint_Q1+index_NyquistPoint]*scaletoHz*1/1j
+            # Find Values, where the imag part is close to zero
+            index_NyquistPoint = np.argmin(np.abs(np.imag(Nyquist_Calc[index_NyquistPoint_Q1:-1])))
+            
+            # Save Nyquist Point and Frequency from Real Part to 1
+            return_var["Nyquist_Point"] = Nyquist_Calc[index_NyquistPoint_Q1+index_NyquistPoint]
+            
+            return_var["Nyquist_Point_Freq"] = Nyquist_Omega[index_NyquistPoint_Q1+index_NyquistPoint]*scaletoHz
+            
+        except:
+            pass
             
             
     return return_var
