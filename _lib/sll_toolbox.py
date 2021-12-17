@@ -283,17 +283,17 @@ def Net_2Mutually(phase_delay, omega0_div, G_CPLG, variable,
             return_var["Nyquist_Solution"] = Nyquist_Calc
             return_var["Nyquist_Freq"] = Nyquist_Omega*scaletoHz
                       
-            # Find Entry Point in Quadrant 1, where Imag and Real Part is positive
-            index_NyquistPoint_Q1 = np.where((np.real(Nyquist_Calc) > 0) & (np.imag(Nyquist_Calc) > 0))
-            index_NyquistPoint_Q1 = np.min(index_NyquistPoint_Q1)
+            # Find Range, where Imag and Real Part is positive and larger than 0.8
+            index_NyquistSearch = np.where((np.real(Nyquist_Calc) > 0.8) & (np.imag(Nyquist_Calc) > 0))
+            index_NyquistSearch = [np.min(index_NyquistSearch), np.max(index_NyquistSearch)]
             
-            # Find Values, where the imag part is close to zero
-            index_NyquistPoint = np.argmin(np.abs(np.imag(Nyquist_Calc[index_NyquistPoint_Q1:-1])))
-            
+            # Find minimum imaginary part in range
+            index_NyquistPoint = np.argmin(np.abs(np.imag(Nyquist_Calc[index_NyquistSearch[0]:index_NyquistSearch[1]])))
+                        
             # Save Nyquist Point and Frequency from Real Part to 1
-            return_var["Nyquist_Point"] = Nyquist_Calc[index_NyquistPoint_Q1+index_NyquistPoint]
+            return_var["Nyquist_Point"] = Nyquist_Calc[index_NyquistSearch[0]+index_NyquistPoint]
             
-            return_var["Nyquist_Point_Freq"] = Nyquist_Omega[index_NyquistPoint_Q1+index_NyquistPoint]*scaletoHz
+            return_var["Nyquist_Point_Freq"] = Nyquist_Omega[index_NyquistSearch[0]+index_NyquistPoint]*scaletoHz
             
         except:
             pass
@@ -584,7 +584,7 @@ def Calc_2Cplg_nonlinear(time_start=0, time_end=10e-9, time_points=1e3,
     Solution_AntiPhase["VCO_Freq_UnStable"] = np.asarray(Solution_AntiPhase["Network_Freq_UnStable"])*Div_N   
     
     # Some Infos
-    print("\033[0m" + "Rescalings \033[32;1m" + "done" + "\033[0m!")
+    print("\033[0m" + "Post-Processing \033[32;1m" + "done" + "\033[0m!")
     
     #############################################################################    
     

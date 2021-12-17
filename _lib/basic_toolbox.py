@@ -805,7 +805,7 @@ def Linear_Plot(ax, Plot_list, X_label, Y_label, Legend=True, LegendLoc=0,
         Plot = [[XData, YData, "Label"], [XData2, YData2, "Label", 'linestyle=dashed'],...]
         
         # or for loops just use
-        Plot.append([XData3, YData3, "Label"])
+        Plot.append([XData3, YData3, "Label", "**kwargs"])
         
         # Generate Plot
         plt.figure(figsize=(7.5,12))
@@ -1915,6 +1915,42 @@ def FindPoint_NextValue(XData, YData, XPoint, plot=False, **kwargs):
     index = np.argmin(np.abs(XData-XPoint))
 
     return YData[index]
+
+#############################################################################
+###         Clock Extraction
+#############################################################################
+def Extract_DigitalClock(WaveX, WaveY,
+                         edge_trigger = 'rising', trigger_val = 0.5,
+                         threshold_high = 0.01, threshold_low = 0):
+#############################################################################  
+
+#############################################################################  
+    
+    # Digitialize Data
+    Y_dig = np.array(Digitalize_Data(WaveY, 0, onlyDigi=True,
+                                     threshold_high=threshold_high,
+                                     threshold_low=threshold_low)[0])
+ 
+
+    # choose edge mask for rising or falling edge clock mask
+    if edge_trigger == 'rising':
+        mask = (Y_dig[:-1] < trigger_val) & (Y_dig[1:] > trigger_val)
+    elif edge_trigger == 'falling':
+        mask = (Y_dig[:-1] > trigger_val) & (Y_dig[1:] < trigger_val) 
+    else :
+        print("edge trigger mask not valid!") 
+            
+    # Get Index and Timestamp
+    mask_index = [index for index, value in enumerate(mask) if value] 
+    mask_time = WaveX[mask_index]
+    
+    # Timestamps
+    XClk = mask_time[1::]
+    
+    # calulate periode
+    YClk = np.diff(mask_time)
+
+    return [XClk, YClk]
 
 #############################################################################
 ###         Digitalize Data
