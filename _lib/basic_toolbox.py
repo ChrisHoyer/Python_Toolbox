@@ -7,6 +7,7 @@
 # - Linearization_Point: linearization around one point
 # - Linear_Plot: linear plot function with automated labeling
 # - Polar_Plot: Polar plot function with automated labeling
+# - Histogram_Plot: Plot Histogram
 # - Box_Plot: Boxplots with automated labeling
 # - SemiLogX_Plot: semilog x plot function with automated labeling
 # - Vline_Plot: generates vertical line in plot with label
@@ -14,7 +15,8 @@
 # - Rectangle_Plot: generates rectangle inside plot
 # - Align_YAxis: Align two YGrids in one plot
 # - FindPoint_NextValue: find nearest point
-# - Digitalize_Data: Generates binary stream from data and clock
+# - Digitalize_Data: Generates binary stream from data and clock from
+# - Extract_DigitalClock: Extracts clock from data and clock from waveform
 # - CMPLX2Format: converts complex numbers in different formats
 # - Average: Average a Dataset
 # - FrequencyFiltering: Frequency Filtering of Data
