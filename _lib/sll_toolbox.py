@@ -17,7 +17,6 @@ import sympy
 import time
 import numpy as np
 import scipy as sp
-from scipy import signal
 
 #############################################################################
 ###                 Linear Network with 2 Mutually Coupled Oscillators
@@ -270,7 +269,7 @@ def Net_2Mutually(phase_delay, omega0_div, G_CPLG, variable,
         G_CPLG_CL_LF = sympy.simplify(G_CPLG_CL_LF)
         
         # Open loop network transfer function of coupled PLLs
-        G_NET = G_CPLG_CL_LF * exp_delay * G_CPLG_CL_LF * exp_delay
+        G_NET = G_CPLG_CL_LF * exp_delay  * G_CPLG_CL_LF * exp_delay
         
         # Calculate Nyquist Frequency Span
         Nyquist_Omega = 2j * np.pi * Nyquist_Freq
@@ -283,19 +282,26 @@ def Net_2Mutually(phase_delay, omega0_div, G_CPLG, variable,
             return_var["Nyquist_Solution"] = Nyquist_Calc
             return_var["Nyquist_Freq"] = Nyquist_Omega*scaletoHz
                       
-            # Find Range, where Imag and Real Part is positive and larger than 0.8
-            index_NyquistSearch = np.where((np.real(Nyquist_Calc) > 0.8) & (np.imag(Nyquist_Calc) > 0))
-            index_NyquistSearch = [np.min(index_NyquistSearch), np.max(index_NyquistSearch)]
+            # Find Indices where imaginary part sign is changed (except first)
+            Nyquist_Sign = ((np.roll(np.sign(np.imag(Nyquist_Calc)), 1) - np.sign(np.imag(Nyquist_Calc))) != 0)
+            Nyquist_Sign = [i for i, x in enumerate(Nyquist_Sign) if x and i > 0]
             
-            # Find minimum imaginary part in range
-            index_NyquistPoint = np.argmin(np.abs(np.imag(Nyquist_Calc[index_NyquistSearch[0]:index_NyquistSearch[1]])))
-                        
+            # Only where real part is positive
+            Nyquist_Sign = [i for i in Nyquist_Sign if np.real(Nyquist_Calc[i]) > 0]
+
+            if len(Nyquist_Sign) > 1:
+                Nyquist_Sign = [i for i in Nyquist_Sign if np.real(Nyquist_Calc[i]) > 0.5]
+            
+            if len(Nyquist_Sign) > 1:
+                print("Error in Nyquist Point Calculation - Multiple Points close to 1+0j")
+                    
             # Save Nyquist Point and Frequency from Real Part to 1
-            return_var["Nyquist_Point"] = Nyquist_Calc[index_NyquistSearch[0]+index_NyquistPoint]
+            return_var["Nyquist_Point"] = Nyquist_Calc[Nyquist_Sign]       
+            return_var["Nyquist_Point_Freq"] = np.imag(Nyquist_Omega[Nyquist_Sign]*scaletoHz)
             
-            return_var["Nyquist_Point_Freq"] = Nyquist_Omega[index_NyquistSearch[0]+index_NyquistPoint]*scaletoHz
             
         except:
+            print("Error in Nyquist Point Calculation")
             pass
             
             
