@@ -2034,6 +2034,15 @@ def Digitalize_Data(data, clock, chipselect = [], edge_trigger = 'rising',
             
         return [digital_array, conversion_errors]
     
+    def BinarytoByte(BinaryString):
+        
+        # Convert Binary String into Bytes
+        Bytes = [BinaryString[i:i+4] for i in range(0, len(BinaryString), 4)]
+        Bytes = [str(hex(int(i,2))).replace('0x','') for i in Bytes]
+        
+        # Merge every 4 Bytes
+        return [ ''.join(x) for x in zip(Bytes[0::4], Bytes[1::4], Bytes[2::4], Bytes[3::4]) ]
+    
 #############################################################################    
        
     # Generate Digital Data
@@ -2072,55 +2081,121 @@ def Digitalize_Data(data, clock, chipselect = [], edge_trigger = 'rising',
     # data conversion
     data_dig = np.array(data_dig)
     clock_dig = np.array(clock_dig)
-    if(CS): chipselect_dig = np.array(chipselect_dig)
      
     # rising or falling edge clock mask
     mask_rising = (clock_dig[:-1] < trigger_val) & (clock_dig[1:] > trigger_val)
     mask_falling = (clock_dig[:-1] > trigger_val) & (clock_dig[1:] < trigger_val) 
+ 
+    # rising or falling chip select
+    if(CS):
+        
+        # data conversion
+        chipselect_dig = np.array(chipselect_dig)
+        
+        CS_mask_rising = (chipselect_dig[:-1] < trigger_val) & (chipselect_dig[1:] > trigger_val)
+        CS_mask_falling = (chipselect_dig[:-1] > trigger_val) & (chipselect_dig[1:] < trigger_val) 
     
+        # chip select mask
+        mask_cs_rising = [index for index, value in enumerate(CS_mask_rising) if value]
+        mask_cs_falling = [index for index, value in enumerate(CS_mask_falling) if value]
+        
+        # limit to smaller length
+        max_length = np.min([len(mask_cs_rising),len(mask_cs_falling)])
+        mask_cs_rising = mask_cs_rising[:max_length]
+        mask_cs_falling = mask_cs_falling[:max_length]
+        
     # choose edge mask
     mask = []
     if edge_trigger == 'rising':
-        mask = [index for index, value in enumerate(mask_rising) if value]
+        clockmask = [index for index, value in enumerate(mask_rising) if value]
     elif edge_trigger == 'falling':
-        mask = [index for index, value in enumerate(mask_falling) if value]
+        clockmask = [index for index, value in enumerate(mask_falling) if value]
     else :
         print("edge trigger mask not valid!")         
 
-    # sample data at edge
-    binary_data = data_dig[mask]
-    if(CS): binary_cs = chipselect_dig[mask]
-    
-    # Allow only data, where CS is high
-           
-    # plot both streams
-    if plot:
-             
-        plt.figure(figsize=(15,10))
-        ax1 = plt.subplot(311)
-        ax1.plot(data_dig, label="Data")
-        ax1.plot(data/np.max(data), label="Data orig", linewidth=0.1, color='k')
-        ax1.plot(mask,binary_data, 'rx', label="Sampled", markersize=10)
-        ax1.grid()
-        ax1.legend()
+    # Allow only data, where chip is selected
+    if(CS): 
         
-        ax2 = plt.subplot(312)
-        ax2.plot(clock_dig, label="Clock") 
-        ax2.plot(clock/np.max(clock), label="Clock orig", linewidth=0.1, color='k') 
-        ax2.plot(mask_rising, label="Rising Edge", linestyle='--')  
-        ax2.plot(mask_falling, label="Falling Edge", linestyle='--')   
-        ax2.grid()
-        ax2.legend()
+        binary_data = []
+        binary_cs = []
+        mask = []
         
-        if (CS):
-            ax3 = plt.subplot(313)
-            ax3.plot(chipselect_dig, label="Chip Select")
-            ax3.plot(chipselect/np.max(chipselect), label="Chip Select orig", linewidth=0.1, color='k')
-            ax3.plot(mask, binary_cs, 'rx', label="Sampled", markersize=10)
-            ax3.grid()
-            ax3.legend()
+        # iterate each chip select cycle
+        for cs_index in range(max_length):
+            
+            start_index = mask_cs_rising[cs_index]
+            clk_start = list(filter(lambda i: i >= start_index, clockmask))
+            
+            # no index found -> skip
+            if (len(clk_start) == 0): continue
+            
+            stop_index = mask_cs_falling[cs_index]
+            clk_stop = list(filter(lambda i: i <= stop_index, clockmask))  
+            
+            # no index found -> skip
+            if (len(clk_stop) == 0): continue
+
+            # get clock mask for this window
+            clk_window_start = clockmask.index( clk_start[0]  )
+            clk_window_stop = clockmask.index( clk_stop[-1] )
+            
+            # clock to sample data in window
+            clock_windowed = clockmask[clk_window_start : clk_window_stop]
+
+            # append to output
+            mask.append(clock_windowed )
+            binary_data.append( data_dig[clock_windowed] )
+            binary_cs.append( chipselect_dig[clock_windowed] ) 
+            
+            # plot both streams
+            if plot:
+                 
+                # orginal data, normalized
+                norm_origdata = data[start_index:stop_index] / np.max(data[start_index:stop_index])
+                norm_origclock = clock[start_index:stop_index] / np.max(clock[start_index:stop_index])
+                
+                plt.figure(figsize=(15,10))
+                ax1 = plt.subplot(211)
+                ax1.plot(data_dig[start_index:stop_index], label="Data")
+                ax1.plot(norm_origdata, label="Data orig.", linewidth=0.1, color='k')
+                ax1.plot(np.array(clock_windowed) - start_index, data_dig[clock_windowed],
+                         'rx', label="Sampled", markersize=10)
+                ax1.grid()
+                ax1.legend()
+                
+                ax2 = plt.subplot(212)
+                ax2.plot(clock_dig[start_index:stop_index], label="Clock")
+                ax2.plot(norm_origclock, label="Clock orig" , linewidth=0.1, color='k') 
+                ax2.grid()
+                ax2.legend()
+                 
+                plt.show              
+            
+            
+    else:
         
-        plt.show       
+        # sample data at edge
+        binary_data = data_dig[clockmask]
+        mask = clockmask
+        
+        # plot both streams
+        if plot:
+            
+            plt.figure(figsize=(15,10))
+            ax1 = plt.subplot(211)
+            ax1.plot(data_dig, label="Data")
+            ax1.plot(data/np.max(data), label="Data orig", linewidth=0.1, color='k')
+            ax1.plot(mask,binary_data, 'rx', label="Sampled", markersize=10)
+            ax1.grid()
+            ax1.legend()
+            
+            ax2 = plt.subplot(212)
+            ax2.plot(clock_dig, label="Clock") 
+            ax2.plot(clock/np.max(clock), label="Clock orig", linewidth=0.1, color='k')   
+            ax2.grid()
+            ax2.legend()
+        
+            plt.show       
              
     return binary_data
  
