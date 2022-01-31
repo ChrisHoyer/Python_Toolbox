@@ -2073,10 +2073,13 @@ def Digitalize_Data(data, clock, chipselect = [], edge_trigger = 'rising',
     if(CS): conversion_errors = conversion_errors + chipselect_dig[1]
         
     # clear faulty data from streams
-    data_dig = [value for index, value in enumerate(data_dig[0]) if index not in conversion_errors]
-    clock_dig = [value for index, value in enumerate(clock_dig[0]) if index not in conversion_errors]
-    if(CS):
-        chipselect_dig = [value for index, value in enumerate(chipselect_dig[0]) if index not in conversion_errors]
+    data_dig = np.delete(data_dig[0], conversion_errors)
+    clock_dig = np.delete(clock_dig[0], conversion_errors)
+    if(CS): chipselect_dig = np.delete(chipselect_dig[0], conversion_errors)
+    
+    # rescale original data
+    data = np.delete(data, conversion_errors)
+    clock = np.delete(clock, conversion_errors)
  
     # data conversion
     data_dig = np.array(data_dig)
@@ -2127,17 +2130,23 @@ def Digitalize_Data(data, clock, chipselect = [], edge_trigger = 'rising',
             clk_start = list(filter(lambda i: i >= start_index, clockmask))
             
             # no index found -> skip
-            if (len(clk_start) == 0): continue
+            if (len(clk_start) == 0): 
+                print("START: {} ".format(start_index))
+                clk_start = np.flip(list(filter(lambda i: i <= start_index, clockmask)))
+                print("SMALLER START: {} NEW START {}".format(start_index, clk_start))
             
             stop_index = mask_cs_falling[cs_index]
-            clk_stop = list(filter(lambda i: i <= stop_index, clockmask))  
+            clk_stop = list(filter(lambda i: i >= stop_index, clockmask))  
             
             # no index found -> skip
-            if (len(clk_stop) == 0): continue
+            if (len(clk_stop) == 0):
+                print("STOP: {} ".format(stop_index))
+                clk_stop = np.flip(list(filter(lambda i: i <= stop_index, clockmask)))
+                print("SMALLER STOP: {} NEW STOP {}".format(stop_index, clk_stop))
 
             # get clock mask for this window
             clk_window_start = clockmask.index( clk_start[0]  )
-            clk_window_stop = clockmask.index( clk_stop[-1] )
+            clk_window_stop = clockmask.index( clk_stop[0] )
             
             # clock to sample data in window
             clock_windowed = clockmask[clk_window_start : clk_window_stop]
@@ -2154,18 +2163,25 @@ def Digitalize_Data(data, clock, chipselect = [], edge_trigger = 'rising',
                 norm_origdata = data[start_index:stop_index] / np.max(data[start_index:stop_index])
                 norm_origclock = clock[start_index:stop_index] / np.max(clock[start_index:stop_index])
                 
+                norm_sample = np.array(clock_windowed)- start_index
+                
                 plt.figure(figsize=(15,10))
                 ax1 = plt.subplot(211)
                 ax1.plot(data_dig[start_index:stop_index], label="Data")
                 ax1.plot(norm_origdata, label="Data orig.", linewidth=0.1, color='k')
-                ax1.plot(np.array(clock_windowed) - start_index, data_dig[clock_windowed],
-                         'rx', label="Sampled", markersize=10)
+                ax1.plot(norm_sample, data_dig[clock_windowed], 'rx', label="Sampled", markersize=10)
+                
+                ax1.vlines(norm_sample ,0,1, color='C1', label="Clk Edge", linestyles=':')
+                
                 ax1.grid()
                 ax1.legend()
                 
                 ax2 = plt.subplot(212)
                 ax2.plot(clock_dig[start_index:stop_index], label="Clock")
                 ax2.plot(norm_origclock, label="Clock orig" , linewidth=0.1, color='k') 
+                
+                ax2.vlines(norm_sample ,0,1, color='C1', label="Clk Edge", linestyles=':')
+                
                 ax2.grid()
                 ax2.legend()
                  
