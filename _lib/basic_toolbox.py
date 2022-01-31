@@ -2131,18 +2131,23 @@ def Digitalize_Data(data, clock, chipselect = [], edge_trigger = 'rising',
             
             # no index found -> skip
             if (len(clk_start) == 0): 
-                print("START: {} ".format(start_index))
+                #print("START: {} CLK: {}".format(start_index, clk_start))
                 clk_start = np.flip(list(filter(lambda i: i <= start_index, clockmask)))
-                print("SMALLER START: {} NEW START {}".format(start_index, clk_start))
+                #print("SMALLER START: {} NEW CLK START {}".format(start_index, clk_start))
             
             stop_index = mask_cs_falling[cs_index]
             clk_stop = list(filter(lambda i: i >= stop_index, clockmask))  
             
             # no index found -> skip
             if (len(clk_stop) == 0):
-                print("STOP: {} ".format(stop_index))
+                #print("STOP: {} CLK: {}".format(stop_index, clk_start))
                 clk_stop = np.flip(list(filter(lambda i: i <= stop_index, clockmask)))
-                print("SMALLER STOP: {} NEW STOP {}".format(stop_index, clk_stop))
+                #print("SMALLER STOP: {} NEW CLK STOP {}".format(stop_index, clk_stop))
+              
+            # No CLk Found
+            if (len(clk_stop) == 0) and (len(clk_stop) == 0):
+                #print("NO CLK FOUND IN THIS REGION")
+                continue
 
             # get clock mask for this window
             clk_window_start = clockmask.index( clk_start[0]  )
