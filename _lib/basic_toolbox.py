@@ -1966,7 +1966,7 @@ def Extract_DigitalClock(WaveX, WaveY,
 def Digitalize_Data(data, clock, chipselect = [], edge_trigger = 'rising',
                     high_val = 1, low_val = 0, trigger_val = 0.5,
                     threshold_high = 2, threshold_low = 0.8, plot = False,
-                    onlyDigi = False):
+                    onlyDigi = False, mute= True):
 #############################################################################  
     """
     Fits an higher order order polynom function against a set of data in regime 
@@ -1985,6 +1985,7 @@ def Digitalize_Data(data, clock, chipselect = [], edge_trigger = 'rising',
     threshold_low           (optional) threshold low value
     plot                    (optional) plot data for debug
     onlyDigi                (optional) returns only data as logical data
+    mute                    (optional) no print output
     
     return type
        binary bit stream
@@ -2026,8 +2027,9 @@ def Digitalize_Data(data, clock, chipselect = [], edge_trigger = 'rising',
             else:
                conversion_errors.append(current_index)
                digital_array.append(analog_value)
-               print("Data " + str(analog_value) + " (index = " 
-                     + str(current_index) + ") could not be parsed!") 
+               if not(mute):
+                   print("Data " + str(analog_value) + " (index = " 
+                         + str(current_index) + ") could not be parsed!") 
                 
             # increase index
             current_index = current_index + 1
@@ -2114,7 +2116,8 @@ def Digitalize_Data(data, clock, chipselect = [], edge_trigger = 'rising',
     elif edge_trigger == 'falling':
         clockmask = [index for index, value in enumerate(mask_falling) if value]
     else :
-        print("edge trigger mask not valid!")         
+        if not(mute):
+            print("edge trigger mask not valid!")         
 
     # Allow only data, where chip is selected
     if(CS): 
