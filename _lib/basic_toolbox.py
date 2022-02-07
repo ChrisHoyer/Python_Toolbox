@@ -1637,7 +1637,7 @@ def Vline_Plot(ax, xValue, xLabel, yDistance=0.5, yPos='up', color='r',
         
     if yPos == 'center': 
         ylimits = (ylimits[1] - ylimits[0])/2 + ylimits[0]
-        ydistance = 0          
+        
         
 
     # generate Text            
@@ -1650,9 +1650,9 @@ def Vline_Plot(ax, xValue, xLabel, yDistance=0.5, yPos='up', color='r',
 #############################################################################
 ###         Generate Vertical Line with Label
 #############################################################################
-def Hline_Plot(ax, yValue, yLabel, xDistance=0.4, xPos='right', color='r',
+def Hline_Plot(ax, yValue, yLabel, xDistance=0.4, ydistance=0, xPos='right',
                fontsize='12', linestyle='-', verticalalignment='center',
-               **kwargs):
+               color='r', **kwargs):
 #############################################################################  
     """
     Generates Vertical Line in Plot
@@ -1682,6 +1682,7 @@ def Hline_Plot(ax, yValue, yLabel, xDistance=0.4, xPos='right', color='r',
 #############################################################################  
     # Add vertical line
     ax.axhline(y=yValue, color=color, linestyle=linestyle)
+    yValueLabel = yValue + ydistance
 
     # find y Position
     xlimits = ax.get_xlim()
@@ -1696,8 +1697,11 @@ def Hline_Plot(ax, yValue, yLabel, xDistance=0.4, xPos='right', color='r',
         xlimits = xlimits[0]
         xdistance = -1*np.abs(xdistance) 
 
+    if xPos == 'center': 
+        xlimits = (xlimits[1] - xlimits[0])/2 + xlimits[0]
+        
     # generate Text            
-    ax.text(xlimits+xdistance, yValue, yLabel, color=color,
+    ax.text(xlimits+xdistance, yValueLabel, yLabel, color=color,
             fontsize=fontsize, verticalalignment=verticalalignment)  
     
     # jump back
@@ -2518,7 +2522,7 @@ def Spectrum_Minimizer(Freq_Matrix, Mag_Matrix, nanvalue=-100, minmax=True,
 #############################################################################
 ##          Moving Filter
 #############################################################################
-def MovingFilter(Ydata, Xdata, N=3):
+def MovingFilter(Xdata, Ydata, N=3):
 ############################################################################# 
     """
     Simple Moving Filter
@@ -2549,9 +2553,42 @@ def MovingFilter(Ydata, Xdata, N=3):
 	# Return type
     return_dict = {}
     return_dict["YData"] = moving_aves             
-    return_dict["XData"] = Xdata[int((N-1)/2):-1*int((N-1)/2)]        
-    
+    return_dict["XData"] = Xdata[int((N-1)/2):-1*int((N-1)/2)] 
+
+    # return List
+    return_dict = [] 
+    return_dict.append( np.array(Xdata[int((N-1)/2):-1*int((N-1)/2)]) )
+    return_dict.append( np.array(moving_aves) )    
     return return_dict   
+
+#############################################################################
+##          Limit Dataset using Center
+#############################################################################
+def LimitDataset(Xdata, Ydata, Xcenter, Xrange):
+############################################################################# 
+    """
+    Simple Moving Filter
+
+    paramters              description
+    =====================  =============================================:
+    Ydata                   Filter Y Data
+    Xdata                   Correspnding X Data
+    N                       (optional) Moving Filter Size
+    minmax                  
+    
+    return type
+       YData, XData as Dict
+                 
+    """  
+   
+    # Find Center Index
+    XCenter_index = np.argmin( np.abs(Xdata - Xcenter) )
+     
+    # return List
+    return_dict = [] 
+    return_dict.append( Xdata[ XCenter_index-Xrange : XCenter_index+Xrange ] )
+    return_dict.append( Ydata[ XCenter_index-Xrange : XCenter_index+Xrange ] )    
+    return return_dict 
 
 #############################################################################
 ###        Print Progressbar

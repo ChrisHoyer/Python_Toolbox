@@ -17,6 +17,7 @@ import sympy
 import time
 import numpy as np
 import scipy as sp
+from scipy import signal
 
 #############################################################################
 ###                 Linear Network with 2 Mutually Coupled Oscillators
@@ -296,8 +297,12 @@ def Net_2Mutually(phase_delay, omega0_div, G_CPLG, variable,
                 print("Error in Nyquist Point Calculation - Multiple Points close to 1+0j")
                     
             # Save Nyquist Point and Frequency from Real Part to 1
-            return_var["Nyquist_Point"] = Nyquist_Calc[Nyquist_Sign]       
-            return_var["Nyquist_Point_Freq"] = np.imag(Nyquist_Omega[Nyquist_Sign]*scaletoHz)
+            if  len(Nyquist_Calc[Nyquist_Sign]) == 1:
+                return_var["Nyquist_Point"] = Nyquist_Calc[Nyquist_Sign][0]       
+                return_var["Nyquist_Point_Freq"] = np.imag(Nyquist_Omega[Nyquist_Sign][0] *scaletoHz)
+            else:
+                return_var["Nyquist_Point"] = float("NaN")       
+                return_var["Nyquist_Point_Freq"]  = float("NaN")              
             
             
         except:
