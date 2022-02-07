@@ -48,7 +48,6 @@ import re
 
 # Black and White Style
 monochrome = (cycler('color', ['k']) * cycler('linestyle', ['-', '--', ':']) * cycler('marker', ['^', '.','v', '<', '>']))
-monochrome = (cycler('linestyle', ['-', '--', ':']) * cycler('marker', ['^', '.','v', '<', '>']))
 
 #############################################################################
 ###         Import CSV File to a dictionary

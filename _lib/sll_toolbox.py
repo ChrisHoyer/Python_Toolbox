@@ -30,7 +30,7 @@ def Net_2Mutually(phase_delay, omega0_div, G_CPLG, variable,
                   G_CPLG_LF = None,
                   Nyquist_Neglect = 10,
                   calc_networkstab = True,
-                  nyquist_tolerance = 1e-3,
+                  nyquist_tolerance = 1e-3, Nyquist_Real = 0.99,
                   stab_tolerance = 1e-14,
                   debug_return = True, freqinHz = True):
 #############################################################################    
@@ -56,6 +56,7 @@ def Net_2Mutually(phase_delay, omega0_div, G_CPLG, variable,
     calc_networkstab        (optionally) Calculate Network Stability via Nyquist
     G_CPLG_LF               (optionally) G_CPLG but for Network  with LF (no steady state)
     nyquist_tolerance       (optionally) tolerance of nyquist solving
+    Nyquist_Real            (optionally) nyquist realpart checker
     stab_tolerance          (optionally) tolerance of stability solver
     debug_return            (optionally) Return optional values (see below)
     freqinHz                (optionally) Return all Frequencies in Hz
@@ -288,7 +289,7 @@ def Net_2Mutually(phase_delay, omega0_div, G_CPLG, variable,
             Nyquist_Sign = [i for i, x in enumerate(Nyquist_Sign) if x and i > 0]
             
             # Only where real part is positive
-            Nyquist_Sign = [i for i in Nyquist_Sign if np.real(Nyquist_Calc[i]) > 0]
+            Nyquist_Sign = [i for i in Nyquist_Sign if np.real(Nyquist_Calc[i]) > Nyquist_Real]
 
             if len(Nyquist_Sign) > 1:
                 Nyquist_Sign = [i for i in Nyquist_Sign if np.real(Nyquist_Calc[i]) > 0.5]
