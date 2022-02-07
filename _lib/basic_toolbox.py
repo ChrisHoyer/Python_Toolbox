@@ -48,11 +48,12 @@ import re
 
 # Black and White Style
 monochrome = (cycler('color', ['k']) * cycler('linestyle', ['-', '--', ':']) * cycler('marker', ['^', '.','v', '<', '>']))
+monochrome = (cycler('linestyle', ['-', '--', ':']) * cycler('marker', ['^', '.','v', '<', '>']))
 
 #############################################################################
 ###         Import CSV File to a dictionary
 #############################################################################
-def CSV2Dict(csv_file, delimiter=';', complexdelimiter='/', 
+def CSV2Dict(csv_file, delimiter=';', complexdelimiter='/',  Multiblock = False,
              headerline_ends=0, blockheader=False, blockkeys=[],
              headerkeys=[], cellsize=[], **kwargs):
 ############################################################################# 
@@ -65,6 +66,7 @@ def CSV2Dict(csv_file, delimiter=';', complexdelimiter='/',
     csv_file                csv file
     delimiter               (option) csv file delimiter
     complexdelimiter        (option) delimiter if there is a complex value
+    Multiblock              (option) There are multiple lists nested in one file
     blockheader             (option) each block has header?
     headerline_ends         (option) end of header (skip until this line, -1: skip header at all)
     blockkeys               (option) custom block header names (must be equal to block count)
@@ -88,7 +90,7 @@ def CSV2Dict(csv_file, delimiter=';', complexdelimiter='/',
     """
 #############################################################################  
     # row state
-    States = ['', 'SimpleNumber', 'ComplexNumber', 'Text', 'Array']
+    States = ['', 'SimpleNumber', 'ComplexNumber', 'Text', 'Array', 'EmptyRow']
     
     # Matching Numbers to parse float / scientific data
     scientific_number = re.compile('[-+]?\ *[0-9]+\.?[0-9]*(?:[Ee]\ *[-+]?\ *[0-9]+)?')  
@@ -113,7 +115,7 @@ def CSV2Dict(csv_file, delimiter=';', complexdelimiter='/',
              
             # Row with Text and empty
             if (type(cell_content) is str) & (cell_content == "") :
-                 Current_State = States[3]  
+                 Current_State = States[5]  
                  
             # Row with Text and not empty?
             elif (type(cell_content) is str) & (cell_content != "") :
@@ -161,11 +163,15 @@ def CSV2Dict(csv_file, delimiter=';', complexdelimiter='/',
                             
                     # polar coordinates to cartesian
                     v_parsed = v_mag * np.exp(1j*v_angl)
+
+            # Convert Text Data                                
+            elif State == States[3]:
+                v_parsed = v
                             
             # Convert Header Data                                
-            elif State == States[3]:
+            elif State == States[5]:
                 # new Block starts
-                v_parsed = States[3]
+                v_parsed = States[5]
                 
             # Array?
             elif State == States[4]:
@@ -312,7 +318,7 @@ def CSV2Dict(csv_file, delimiter=';', complexdelimiter='/',
                 parsed_Data = CSVData_ParseContent(header, row, cell)
                 
                 # Header found?
-                if parsed_Data == States[3]:
+                if (parsed_Data == States[5]) and Multiblock:
                     NewBlockStart = True
                     
                     # TODO New Block
@@ -1961,10 +1967,10 @@ def Extract_DigitalClock(WaveX, WaveY,
 #############################################################################
 ###         Digitalize Data
 #############################################################################
-def Digitalize_Data(data, clock, edge_trigger = 'rising',
+def Digitalize_Data(data, clock, chipselect = [], edge_trigger = 'rising',
                     high_val = 1, low_val = 0, trigger_val = 0.5,
                     threshold_high = 2, threshold_low = 0.8, plot = False,
-                    onlyDigi = False):
+                    onlyDigi = False, mute= True):
 #############################################################################  
     """
     Fits an higher order order polynom function against a set of data in regime 
@@ -1974,6 +1980,7 @@ def Digitalize_Data(data, clock, edge_trigger = 'rising',
     =====================  =============================================:
     data                    data array
     clock                   clock array
+    chipselect              (optional) chip select
     edge_trigger            (optional) rising or falling
     high_val                (optional) parsed high value
     low_val                 (optional) parsed low value
@@ -1982,6 +1989,7 @@ def Digitalize_Data(data, clock, edge_trigger = 'rising',
     threshold_low           (optional) threshold low value
     plot                    (optional) plot data for debug
     onlyDigi                (optional) returns only data as logical data
+    mute                    (optional) no print output
     
     return type
        binary bit stream
@@ -2023,13 +2031,23 @@ def Digitalize_Data(data, clock, edge_trigger = 'rising',
             else:
                conversion_errors.append(current_index)
                digital_array.append(analog_value)
-               print("Data " + str(analog_value) + " (index = " 
-                     + str(current_index) + ") could not be parsed!") 
+               if not(mute):
+                   print("Data " + str(analog_value) + " (index = " 
+                         + str(current_index) + ") could not be parsed!") 
                 
             # increase index
             current_index = current_index + 1
             
         return [digital_array, conversion_errors]
+    
+    def BinarytoByte(BinaryString):
+        
+        # Convert Binary String into Bytes
+        Bytes = [BinaryString[i:i+4] for i in range(0, len(BinaryString), 4)]
+        Bytes = [str(hex(int(i,2))).replace('0x','') for i in Bytes]
+        
+        # Merge every 4 Bytes
+        return [ ''.join(x) for x in zip(Bytes[0::4], Bytes[1::4], Bytes[2::4], Bytes[3::4]) ]
     
 #############################################################################    
        
@@ -2039,62 +2057,173 @@ def Digitalize_Data(data, clock, edge_trigger = 'rising',
                            low_val=low_val,
                            threshold_high=threshold_high, 
                            threshold_low=threshold_low)
+    
+    # Chip Select availible?
+    CS = len(chipselect) == len(data)
+        
         
     # Generate digital stream
-    data = digitialize(data, high_val=high_val, low_val=low_val,
-                               threshold_high=threshold_high, threshold_low=threshold_low)
+    data_dig = digitialize(data, high_val=high_val, low_val=low_val,
+                           threshold_high=threshold_high, threshold_low=threshold_low)
     
-    clock = digitialize(clock, high_val=high_val, low_val=low_val,
-                               threshold_high=threshold_high, threshold_low=threshold_low)  
+    clock_dig = digitialize(clock, high_val=high_val, low_val=low_val,
+                            threshold_high=threshold_high, threshold_low=threshold_low)
     
+    # Check for Chip Select
+    if(CS):
+        chipselect_dig = digitialize(chipselect, high_val=high_val, low_val=low_val,
+                                     threshold_high=threshold_high, threshold_low=threshold_low)       
+
     # Remove Indicies
-    conversion_errors = data[1] + clock[1]
+    conversion_errors = data_dig[1] + clock_dig[1]
+    if(CS): conversion_errors = conversion_errors + chipselect_dig[1]
+        
+    # clear faulty data from streams
+    data_dig = np.delete(data_dig[0], conversion_errors)
+    clock_dig = np.delete(clock_dig[0], conversion_errors)
+    if(CS): chipselect_dig = np.delete(chipselect_dig[0], conversion_errors)
     
-    # clear faulty data from both streams
-    data = [value for index, value in enumerate(data[0]) if index not in conversion_errors]
-    clock = [value for index, value in enumerate(clock[0]) if index not in conversion_errors]    
+    # rescale original data
+    data = np.delete(data, conversion_errors)
+    clock = np.delete(clock, conversion_errors)
  
     # data conversion
-    data = np.array(data)
-    clock = np.array(clock)
+    data_dig = np.array(data_dig)
+    clock_dig = np.array(clock_dig)
      
     # rising or falling edge clock mask
-    mask_rising = (clock[:-1] < trigger_val) & (clock[1:] > trigger_val)
-    mask_falling = (clock[:-1] > trigger_val) & (clock[1:] < trigger_val) 
+    mask_rising = (clock_dig[:-1] < trigger_val) & (clock_dig[1:] > trigger_val)
+    mask_falling = (clock_dig[:-1] > trigger_val) & (clock_dig[1:] < trigger_val) 
+ 
+    # rising or falling chip select
+    if(CS):
+        
+        # data conversion
+        chipselect_dig = np.array(chipselect_dig)
+        
+        CS_mask_rising = (chipselect_dig[:-1] < trigger_val) & (chipselect_dig[1:] > trigger_val)
+        CS_mask_falling = (chipselect_dig[:-1] > trigger_val) & (chipselect_dig[1:] < trigger_val) 
     
+        # chip select mask
+        mask_cs_rising = [index for index, value in enumerate(CS_mask_rising) if value]
+        mask_cs_falling = [index for index, value in enumerate(CS_mask_falling) if value]
+        
+        # limit to smaller length
+        max_length = np.min([len(mask_cs_rising),len(mask_cs_falling)])
+        mask_cs_rising = mask_cs_rising[:max_length]
+        mask_cs_falling = mask_cs_falling[:max_length]
+        
     # choose edge mask
     mask = []
     if edge_trigger == 'rising':
-        mask = [index for index, value in enumerate(mask_rising) if value]
+        clockmask = [index for index, value in enumerate(mask_rising) if value]
     elif edge_trigger == 'falling':
-        mask = [index for index, value in enumerate(mask_falling) if value]
+        clockmask = [index for index, value in enumerate(mask_falling) if value]
     else :
-        print("edge trigger mask not valid!")         
+        if not(mute):
+            print("edge trigger mask not valid!")         
 
-    # sample data at edge
-    binary_data = data[mask]
-           
-    # plot both streams
-    if plot:
-             
-        plt.figure(figsize=(15,10))
-        ax1 = plt.subplot(311)
-        ax1.plot(data, label="Data")
-        ax1.plot(mask,binary_data, 'rx', label="Sampled")
-        ax1.grid()
-        ax1.legend()
+    # Allow only data, where chip is selected
+    if(CS): 
         
-        ax2 = plt.subplot(312)
-        ax2.plot(clock, label="Clock")           
-        ax2.grid()
-        ax2.legend()
+        binary_data = []
+        binary_cs = []
+        mask = []
         
-        ax3 = plt.subplot(313)
-        ax3.plot(mask_rising, label="Rising Edge")  
-        ax3.plot(mask_falling, label="Falling Edge")           
-        ax3.grid()
-        ax3.legend()
-        plt.show       
+        # iterate each chip select cycle
+        for cs_index in range(max_length):
+            
+            start_index = mask_cs_rising[cs_index]
+            clk_start = list(filter(lambda i: i >= start_index, clockmask))
+            
+            # no index found -> skip
+            if (len(clk_start) == 0): 
+                #print("START: {} CLK: {}".format(start_index, clk_start))
+                clk_start = np.flip(list(filter(lambda i: i <= start_index, clockmask)))
+                #print("SMALLER START: {} NEW CLK START {}".format(start_index, clk_start))
+            
+            stop_index = mask_cs_falling[cs_index]
+            clk_stop = list(filter(lambda i: i >= stop_index, clockmask))  
+            
+            # no index found -> skip
+            if (len(clk_stop) == 0):
+                #print("STOP: {} CLK: {}".format(stop_index, clk_start))
+                clk_stop = np.flip(list(filter(lambda i: i <= stop_index, clockmask)))
+                #print("SMALLER STOP: {} NEW CLK STOP {}".format(stop_index, clk_stop))
+              
+            # No CLk Found
+            if (len(clk_stop) == 0) and (len(clk_stop) == 0):
+                #print("NO CLK FOUND IN THIS REGION")
+                continue
+
+            # get clock mask for this window
+            clk_window_start = clockmask.index( clk_start[0]  )
+            clk_window_stop = clockmask.index( clk_stop[0] )
+            
+            # clock to sample data in window
+            clock_windowed = clockmask[clk_window_start : clk_window_stop]
+
+            # append to output
+            mask.append(clock_windowed )
+            binary_data.append( data_dig[clock_windowed] )
+            binary_cs.append( chipselect_dig[clock_windowed] ) 
+            
+            # plot both streams
+            if plot:
+                 
+                # orginal data, normalized
+                norm_origdata = data[start_index:stop_index] / np.max(data[start_index:stop_index])
+                norm_origclock = clock[start_index:stop_index] / np.max(clock[start_index:stop_index])
+                
+                norm_sample = np.array(clock_windowed)- start_index
+                
+                plt.figure(figsize=(15,10))
+                ax1 = plt.subplot(211)
+                ax1.plot(data_dig[start_index:stop_index], label="Data")
+                ax1.plot(norm_origdata, label="Data orig.", linewidth=0.1, color='k')
+                ax1.plot(norm_sample, data_dig[clock_windowed], 'rx', label="Sampled", markersize=10)
+                
+                ax1.vlines(norm_sample ,0,1, color='C1', label="Clk Edge", linestyles=':')
+                
+                ax1.grid()
+                ax1.legend()
+                
+                ax2 = plt.subplot(212)
+                ax2.plot(clock_dig[start_index:stop_index], label="Clock")
+                ax2.plot(norm_origclock, label="Clock orig" , linewidth=0.1, color='k') 
+                
+                ax2.vlines(norm_sample ,0,1, color='C1', label="Clk Edge", linestyles=':')
+                
+                ax2.grid()
+                ax2.legend()
+                 
+                plt.show              
+            
+            
+    else:
+        
+        # sample data at edge
+        binary_data = data_dig[clockmask]
+        mask = clockmask
+        
+        # plot both streams
+        if plot:
+            
+            plt.figure(figsize=(15,10))
+            ax1 = plt.subplot(211)
+            ax1.plot(data_dig, label="Data")
+            ax1.plot(data/np.max(data), label="Data orig", linewidth=0.1, color='k')
+            ax1.plot(mask,binary_data, 'rx', label="Sampled", markersize=10)
+            ax1.grid()
+            ax1.legend()
+            
+            ax2 = plt.subplot(212)
+            ax2.plot(clock_dig, label="Clock") 
+            ax2.plot(clock/np.max(clock), label="Clock orig", linewidth=0.1, color='k')   
+            ax2.grid()
+            ax2.legend()
+        
+            plt.show       
              
     return binary_data
  
