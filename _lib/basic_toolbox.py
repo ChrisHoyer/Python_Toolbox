@@ -809,7 +809,8 @@ def Linear_Plot(ax, Plot_list, X_label, Y_label, Legend=True, LegendLoc=0,
         # Prepare
         Xlabel = ["XLabel", 'V']
         Ylabel = ["YLabel", 'V']
-        Plot = [[XData, YData, "Label"], [XData2, YData2, "Label", 'linestyle=dashed'],...]
+        Plot = [[XData, YData, "Label"], [XData2, YData2, "Label", 'linestyle=dashed'],
+                [XData2, YData2, "Label", 'linestyle=dashed, color=k'], ...]
         
         # or for loops just use
         Plot.append([XData3, YData3, "Label", "**kwargs"])
@@ -881,8 +882,8 @@ def Linear_Plot(ax, Plot_list, X_label, Y_label, Legend=True, LegendLoc=0,
     if XAutolim:
         
         # search min and max x values
-        x_limit_min = np.min(plot[0])
-        x_limit_max = np.max(plot[0])
+        x_limit_min = np.min(x_plot)
+        x_limit_max = np.max(x_plot)
                 
         # iterate all traces
         for trace in ax.get_lines():
@@ -1442,7 +1443,8 @@ def Box_Plot(ax, XDataset , YDataset, X_label, Y_label, boxwidth=0,
 ###         Generate Plot for Frequency Domain / SemilogX
 #############################################################################
 def SemiLogX_Plot(ax, Plot_list, X_label, Y_label, Legend=True, LegendLoc=0, 
-                  TwinX=None, Ylim=None, Xlim=None,  XAutolim=True, fontsize=12, 
+                  TwinX=None, Ylim=None, Xlim=None,  XAutolim=True, fontsize=12,
+                  TicksEng=True,
                   LegendAlpha=1, BlackWhite=False, XTicksLabel=None, **kwargs):
 #############################################################################  
     """
@@ -1520,6 +1522,14 @@ def SemiLogX_Plot(ax, Plot_list, X_label, Y_label, Legend=True, LegendLoc=0,
         for userarg in userargs:
             if userargs[userarg].isdigit():
                 userargs[userarg] = float(userargs[userarg])
+        
+        # rescaling of the y-axis required?
+        if len(Y_label) == 3:
+            y_plot = [y_data*Y_label[2] for y_data in y_plot]
+         
+        # rescaling of the x-axis required?
+        if len(X_label) == 3:
+            x_plot = [x_data*X_label[2] for x_data in x_plot]
                 
         # plot
         ax.semilogx(x_plot, y_plot, label=plot[2], **userargs)     
@@ -1527,9 +1537,12 @@ def SemiLogX_Plot(ax, Plot_list, X_label, Y_label, Legend=True, LegendLoc=0,
     # =================================== 
     # label
     ax.set_ylabel(Y_label[0])
-    ax.yaxis.set_major_formatter(tck.EngFormatter(unit=Y_label[1]))
     ax.set_xlabel(X_label[0])
-    ax.xaxis.set_major_formatter(tck.EngFormatter(unit=X_label[1]))
+    
+    # ticks in engineering formatter
+    if TicksEng:
+        ax.yaxis.set_major_formatter(tck.EngFormatter(unit=Y_label[1]))
+        ax.xaxis.set_major_formatter(tck.EngFormatter(unit=X_label[1]))
 
     # ===================================         
     # set font sizes
@@ -1566,13 +1579,32 @@ def SemiLogX_Plot(ax, Plot_list, X_label, Y_label, Legend=True, LegendLoc=0,
     # =================================== 
     # xlimit Automatic fit?
     if XAutolim:
-        ax.set_xlim([np.min(plot[0]),np.max(plot[0])])
-    
+        
+        # search min and max x values
+        x_limit_min = np.min(x_plot)
+        x_limit_max = np.max(x_plot)
+                
+        # iterate all traces
+        for trace in ax.get_lines():
+            
+            # find new min value
+            if np.min(trace.get_xdata()) < x_limit_min:
+                x_limit_min = np.min(trace.get_xdata())
+ 
+            # find new min value
+            if np.max(trace.get_xdata()) > x_limit_max:
+                x_limit_max = np.max(trace.get_xdata())           
+        
+        # set x limit
+        ax.set_xlim([x_limit_min,x_limit_max])
+
+     # =================================== 
+     
     # xlimit    
     if Xlim:
         ax.set_xlim([Xlim[0],Xlim[1]])       
 
-    # =================================== 
+
     # ylimit    
     if Ylim:
         ax.set_ylim([Ylim[0],Ylim[1]])

@@ -30,7 +30,7 @@ def Net_2Mutually(phase_delay, omega0_div, G_CPLG, variable,
                   G_CPLG_LF = None,
                   Nyquist_Neglect = 10,
                   calc_networkstab = True,
-                  nyquist_tolerance = 1e-3, Nyquist_Real = 0.99,
+                  nyquist_tolerance = 1e-3, Nyquist_Real = 0.999,
                   stab_tolerance = 1e-14,
                   debug_return = True, freqinHz = True):
 #############################################################################    
