@@ -12,6 +12,7 @@
 # - SemiLogX_Plot: semilog x plot function with automated labeling
 # - Vline_Plot: generates vertical line in plot with label
 # - Hline_Plot: generates horizontal line in plot with label
+# - Fill_Plot: generates fill pattern between axis
 # - Rectangle_Plot: generates rectangle inside plot
 # - Align_YAxis: Align two YGrids in one plot
 # - FindPoint_NextValue: find nearest point
@@ -1745,7 +1746,62 @@ def Hline_Plot(ax, yValue, yLabel, xDistance=0.4, ydistance=0, xPos='right',
     return
 
 #############################################################################
-###         Generate Vertical Line with Label
+###         Generate Fill Pattern in Plot
+#############################################################################
+def Fill_Plot(ax, XAxis, YAxis1, YAxis2 = None, XLimits = None, StickyLimits=True, **kwargs):
+#############################################################################  
+    """
+    Generates Vertical Line in Plot
+
+    paramters              description
+    =====================  =============================================:
+    ax                     plot axis
+    XAxis                  X Axis
+    YAxis1                 YAxis1
+    YAxis2                 (optional) YAxis2
+    XLimits                (optional) Range on the X Axis [start, end]
+    StickyLimits           (optional) Stick to old YLim and XLim (first plot data)
+
+    return type
+       None  (writes directly into axis)
+   
+    """    
+
+#############################################################################  
+
+    # get old limits
+    old_xlim = ax.get_xlim()
+    old_ylim = ax.get_ylim()
+    
+    # limits for x axis
+    if XLimits is not None:
+        Xstart = np.argmin(np.abs(XAxis - XLimits[0]))
+        Xstop = np.argmin(np.abs(XAxis - XLimits[1]))
+        
+        XAxis = XAxis[Xstart:Xstop]
+        YAxis1 = YAxis1[Xstart:Xstop]
+        
+        if YAxis2 is not None:
+            YAxis2 = YAxis2[Xstart:Xstop]
+        
+        
+    if YAxis2 is None:
+        YAxis2 = np.zeros(len(YAxis1))
+
+    # generate Fill Pattern         
+    ax.fill_between(XAxis, YAxis1, YAxis2,  **kwargs)
+
+    # set old limits
+    if StickyLimits:
+        ax.set_xlim(old_xlim)
+        ax.set_ylim(old_ylim)
+        
+    # jump back
+    return    
+    
+    
+#############################################################################
+###         Generate Rectangle Plot
 #############################################################################
 def Rectangle_Plot(ax, xCenter, xSpan, yCenter, ySpan,
                    fullSpanY=False, StickyLimits=True, **kwargs):
