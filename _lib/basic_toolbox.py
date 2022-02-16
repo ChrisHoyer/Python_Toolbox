@@ -1445,7 +1445,7 @@ def Box_Plot(ax, XDataset , YDataset, X_label, Y_label, boxwidth=0,
 #############################################################################
 def SemiLogX_Plot(ax, Plot_list, X_label, Y_label, Legend=True, LegendLoc=0, 
                   TwinX=None, Ylim=None, Xlim=None,  XAutolim=True, fontsize=12,
-                  TicksEng=True,
+                  TicksEng=True, legendcol=1,
                   LegendAlpha=1, BlackWhite=False, XTicksLabel=None, **kwargs):
 #############################################################################  
     """
@@ -1569,7 +1569,7 @@ def SemiLogX_Plot(ax, Plot_list, X_label, Y_label, Legend=True, LegendLoc=0,
         
         if Legend:
             # legend
-            ax.legend(framealpha=1, loc=LegendLoc)
+            ax.legend(framealpha=1, loc=LegendLoc, fontsize=fontsize, ncol=legendcol)
     
         # Generate new Grid
         ax.minorticks_on()
@@ -1627,7 +1627,7 @@ def SemiLogX_Plot(ax, Plot_list, X_label, Y_label, Legend=True, LegendLoc=0,
 ###         Generate Vertical Line with Label
 #############################################################################
 def Vline_Plot(ax, xValue, xLabel, yDistance=0.5, yPos='up', color='r',
-               fontsize='12', linestyle='-', linewidth=1,
+               fontsize='12',
                horizontalalignment='center', **kwargs):
 #############################################################################  
     """
@@ -1658,7 +1658,7 @@ def Vline_Plot(ax, xValue, xLabel, yDistance=0.5, yPos='up', color='r',
 
 #############################################################################  
     # Add vertical line
-    ax.axvline(x=xValue, color=color, linestyle=linestyle, linewidth=linewidth)
+    ax.axvline(x=xValue, color=color, **kwargs)
 
     # find y Position
     ylimits = ax.get_ylim()
@@ -1689,8 +1689,7 @@ def Vline_Plot(ax, xValue, xLabel, yDistance=0.5, yPos='up', color='r',
 ###         Generate Vertical Line with Label
 #############################################################################
 def Hline_Plot(ax, yValue, yLabel, xDistance=0.4, ydistance=0, xPos='right',
-               fontsize='12', linestyle='-', verticalalignment='center',
-               color='r', **kwargs):
+               fontsize='12', verticalalignment='center', color='r', **kwargs):
 #############################################################################  
     """
     Generates Vertical Line in Plot
@@ -1719,7 +1718,7 @@ def Hline_Plot(ax, yValue, yLabel, xDistance=0.4, ydistance=0, xPos='right',
 
 #############################################################################  
     # Add vertical line
-    ax.axhline(y=yValue, color=color, linestyle=linestyle)
+    ax.axhline(y=yValue, color=color, **kwargs)
     yValueLabel = yValue + ydistance
 
     # find y Position
