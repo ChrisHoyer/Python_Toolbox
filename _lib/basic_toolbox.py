@@ -1627,8 +1627,7 @@ def SemiLogX_Plot(ax, Plot_list, X_label, Y_label, Legend=True, LegendLoc=0,
 ###         Generate Vertical Line with Label
 #############################################################################
 def Vline_Plot(ax, xValue, xLabel, yDistance=0.5, yPos='up', color='r',
-               fontsize='12',
-               horizontalalignment='center', **kwargs):
+               fontsize=12, horizontalalignment='center', **kwargs):
 #############################################################################  
     """
     Generates Vertical Line in Plot
