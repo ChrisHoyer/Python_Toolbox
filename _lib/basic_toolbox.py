@@ -2844,6 +2844,11 @@ def EngNot( x, sig_figs=3, si=True):
     e-9 etc.
     Based on https://stackoverflow.com/questions/17973278/python-decimal-engineering-notation-for-mili-10e-3-and-micro-10e-6
     """
+    
+    if np.isnan(x):
+        return ""
+    
+    
     x = float(x)
     sign = ''
     if x < 0:

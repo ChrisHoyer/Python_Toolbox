@@ -282,7 +282,7 @@ def Net_2Mutually(phase_delay, omega0_div, G_CPLG, variable,
                                                    variable=variable)
             # return Nyquist Calculation
             return_var["Nyquist_Solution"] = Nyquist_Calc
-            return_var["Nyquist_Freq"] = Nyquist_Omega*scaletoHz
+            return_var["Nyquist_Solution_Freq"] = Nyquist_Omega*scaletoHz
                       
             # Find Indices where imaginary part sign is changed (except first)
             Nyquist_Sign = ((np.roll(np.sign(np.imag(Nyquist_Calc)), 1) - np.sign(np.imag(Nyquist_Calc))) != 0)
