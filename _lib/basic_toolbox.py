@@ -2833,7 +2833,7 @@ def printProgressBar (iteration, total, prefix = "Progress", suffix = "Complete"
  #############################################################################
  ###        Engineering Notation
  #############################################################################       
-def EngNot( x, sig_figs=3, si=True):
+def EngNot( x, sig_figs=3, si=True, exp=True):
     """
     Returns float/int value <x> formatted in a simplified engineering format -
     using an exponent that is a multiple of 3.

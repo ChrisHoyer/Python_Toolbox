@@ -254,7 +254,7 @@ def Net_2Mutually(phase_delay, omega0_div, G_CPLG, variable,
     
     # return Nyquist Calculation
     return_var["Nyquist_Solution"] = float("NaN")
-    return_var["Nyquist_Freq"] = float("NaN")
+    return_var["Nyquist_Solution_Freq"] = float("NaN")
 
             
     # Calculate Network Stability
@@ -283,7 +283,7 @@ def Net_2Mutually(phase_delay, omega0_div, G_CPLG, variable,
             # return Nyquist Calculation
             return_var["Nyquist_Solution"] = Nyquist_Calc
             return_var["Nyquist_Solution_Freq"] = Nyquist_Omega*scaletoHz
-                      
+                                  
             # Find Indices where imaginary part sign is changed (except first)
             Nyquist_Sign = ((np.roll(np.sign(np.imag(Nyquist_Calc)), 1) - np.sign(np.imag(Nyquist_Calc))) != 0)
             Nyquist_Sign = [i for i, x in enumerate(Nyquist_Sign) if x and i > 0]
@@ -438,6 +438,128 @@ def Calc_2Cplg_linear(time_start=0, time_end=10e-9, time_points=1e3,
     #############################################################################    
     
     return {"m_0": Solution_InPhase,  "m_pi": Solution_AntiPhase}
+
+def Calc_linear(time_start=0, time_end=10e-9, time_points=1e3,
+                VCO_freq0 = 2*np.pi*24.25e9,
+                Div_N=16*32, K_VCO=2*np.pi*757.47e6,
+                K_PD = 1.6, K_LF = 1, fb_phase = 0,  
+                s = sympy.Symbol('s'), Nqy_freq = np.linspace(1e3, 100e6, int(1e3)),
+                Nqy_skip = 10, phi_mode = [0, np.pi]):
+    #############################################################################    
+    """
+    Simple Network of two coupled PLL System in Laplace Domain with default values from
+    3. Gen Prototypes (Version 1.1) with 2nd order RC-Loopfilter
+    
+    parameters              description
+    =====================  =============================================:
+    time_start              starting phase for iteration
+    time_end                ending phase for iteration
+    time_points             number of iterations
+    
+    VCO_freq0               VCO Closed Loop Freq (Hz) (default: 24.25e9)
+    Div_N                   Divider Value (default: 16*32)
+    K_VCO                   VCO Sensitivity (Hz/V) (default: 757e6)
+    K_PD                    PD Sensitivity (V/pi) (default: 1.6)
+    K_LF                    Loop Filter Function (default: 1, no laplace)
+    s                       Laplace Variable (default: "s")
+    Nqy_freq                Frequencies for which Laplace is calculated
+    Nqy_skip                Time Delays for which the Nyquist Calulation is skipped
+    
+    fb_phase               (optionally) Feedback Phase
+    """
+    #############################################################################
+    
+    # Some Infos
+    print("\033[34;1m" + "Simulation of two coupled Oscillators (without nonlinearity)")
+    print("\033[34;1m" + "-> Sweep Time-delay between {}s to {}s with {} points".format(basic.EngNot(time_start), 
+                                                                                        basic.EngNot(time_end), 
+                                                                                        basic.EngNot(time_points)))
+    print("\033[34;1m" + "-> Free running closed Loop Freq. {}Hz and Division by {}".format(basic.EngNot(VCO_freq0/(2*np.pi)),
+                                                                                            Div_N))
+    print("\033[34;1m" + "-> Sensitivity of VCO {}Hz/V and Phase-Detector {}V/pi".format(basic.EngNot(K_VCO/(2*np.pi)),
+                                                                                         basic.EngNot(K_PD)))
+    print("\033[34;1m" + "-> Perform Nyquist Calulations between {}Hz to {}Hz with {} points\033[0m".format(basic.EngNot(Nqy_freq[0]),
+                                                                                                            basic.EngNot(Nqy_freq[-1]), 
+                                                                                                            basic.EngNot(len(Nqy_freq))))
+    
+    start_time = time.time()
+    
+    #############################################################################
+    #           Variables of PLL System and Network Analysis (Default Values)
+    #############################################################################
+    
+    # Quiescent PLL Freq
+    Omega0_Div = VCO_freq0/Div_N
+
+    # Time Delay
+    Time_Delay = np.linspace(time_start,time_end,int(time_points))
+    
+    # PD Phase-Error Transfer Function
+    coupling_function = "triangle"
+    
+      
+    #############################################################################
+    #           Calculate PLL Solution and Network Stability
+    #############################################################################
+    
+    # transfer function of PD Input to CrossCoupling output
+    G_CPLG = K_PD * K_VCO/s * 1/Div_N
+    G_CPLG_LF = K_PD * K_LF  * K_VCO/s * 1/Div_N
+    
+    # Mean Phase for Time Delay
+    PhaseError = Omega0_Div * Time_Delay
+             
+    Solution = {}
+    
+    # Progressbar
+    l = len(PhaseError) * len(phi_mode)
+    basic.printProgressBar(0, l, length = 50)
+    
+    # running index
+    index = 0
+    
+    for indexPhimode, PhaseMode in enumerate(phi_mode):
+        
+        # Solution for this Phase
+        SolutionPhase = []
+        
+
+        for indexPhase, PhaseDelay in enumerate(PhaseError): 
+           
+            # calculate every 100th network stability
+            calc_networkstab = True if (indexPhase%Nqy_skip == 0) else False
+            
+            # calculate in-phase
+            SolutionPhase.append(Net_2Mutually(PhaseDelay, Omega0_Div, G_CPLG, s,
+                                          G_CPLG_LF = G_CPLG_LF,
+                                          mode=PhaseMode, coupling_function = coupling_function,
+                                          Nyquist_Freq = Nqy_freq,
+                                          calc_networkstab = calc_networkstab,
+                                          feedback_phase = fb_phase))
+                    
+            # Update Progress Bar
+            index += 1
+            basic.printProgressBar(index, l, length = 50)
+            
+        # Save Solution
+        Solution[str(PhaseMode/np.pi)] = {k: [dic[k] for dic in SolutionPhase] for k in SolutionPhase[0]}
+             
+    # Some Infos
+    elapsed_time = time.time() - start_time
+    print("\033[0m" + "Calculations \033[32;1m" + "done" + "\033[0m! (Time needed: " + str(np.round(elapsed_time,3)) + "sec.)")
+    
+    # Generate VCO Frequency by Scaling with Division Factor
+    for SolutionPhase in Solution:
+        Solution[SolutionPhase]["VCO_Freq_Stable"] = np.asarray(Solution[SolutionPhase]["Network_Freq_Stable"])*Div_N
+        Solution[SolutionPhase]["VCO_Freq_UnStable"] = np.asarray(Solution[SolutionPhase]["Network_Freq_UnStable"])*Div_N   
+  
+    
+    # Some Infos
+    print("\033[0m" + "Rescalings \033[32;1m" + "done" + "\033[0m!")
+    
+    #############################################################################    
+    
+    return Solution
 
 #############################################################################
 ###              3th/3.5th Generation, Homogen and Non-Linear
