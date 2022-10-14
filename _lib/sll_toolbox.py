@@ -496,7 +496,7 @@ def Calc_linear(time_start=0, time_end=10e-9, time_points=1e3,
     
     # PD Phase-Error Transfer Function
     coupling_function = "triangle"
-    
+        
       
     #############################################################################
     #           Calculate PLL Solution and Network Stability
@@ -506,6 +506,11 @@ def Calc_linear(time_start=0, time_end=10e-9, time_points=1e3,
     G_CPLG = K_PD * K_VCO/s * 1/Div_N
     G_CPLG_LF = K_PD * K_LF  * K_VCO/s * 1/Div_N
     
+    # Print Loop gain
+    GLoop = float(s * G_CPLG)
+    print("\033[34;1m" + "-> loop-gain: {}\033[0m".format(basic.EngNot(GLoop) ))
+                                                       
+                                                                                                        
     # Mean Phase for Time Delay
     PhaseError = Omega0_Div * Time_Delay
              
@@ -718,4 +723,164 @@ def Calc_2Cplg_nonlinear(time_start=0, time_end=10e-9, time_points=1e3,
     #############################################################################    
     
     return {"m_0": Solution_InPhase,  "m_pi": Solution_AntiPhase}
+
+def Calc_nonlinear(time_start=0, time_end=10e-9, time_points=1e3,
+                      VCO_freq0 = 2*np.pi*24.25e9,
+                      Div_N=16*32, K_VCO=2*np.pi*757.47e6,
+                      K_PD = 1.6, K_LF = 1, Nqy_skip = 10, 
+                      fb_phase = 0, phi_mode = [0, np.pi]):
+    #############################################################################    
+    """
+    Simple Network of two coupled PLL System in Laplace Domain with default values from
+    3. Gen Prototypes (Version 1.1) with 2nd order RC-Loopfilter
+    
+    parameters              description
+    =====================  =============================================:
+    phase_start             starting phase for iteration
+    phase_end               ending phase for iteration
+    phase_points            number of iterations
+    
+    VCO_freq0               VCO Closed Loop Freq (Hz) (default: 24.25e9)
+    Div_N                   Divider Value (default: 16*32)
+    K_VCO                   (not used) VCO Sensitivity (Hz/V) (default: 757e6)
+    K_PD                    (not used) PD Sensitivity (V/pi) (default: 1.6)
+    K_LF                    (not used) Loop Filter Gain (default: 1, no laplace)
+       
+    fb_phase               (optionally) Feedback Phase
+    """
+    #############################################################################
+    
+    # Some Infos
+    print("\033[34;1m" + "Simulation of two coupled Oscillators (Non-Linear)")
+    print("\033[34;1m" + "-> Starting Time {}s to {}s using {} points".format(basic.EngNot(time_start), basic.EngNot(time_end), basic.EngNot(time_points)))
+    print("\033[34;1m" + "-> Closed Loop Freq. {}Hz and Division by {}\033[0m".format(basic.EngNot(VCO_freq0/(2*np.pi)), Div_N))
+  
+    start_time = time.time()
+    
+    #############################################################################
+    #           Variables of PLL System and Network Analysis (Default Values)
+    #############################################################################
+    
+    # laplace variable
+    s = sympy.Symbol('s')
+    
+    # Quiescent PLL Freq
+    Omega0_Div = VCO_freq0/Div_N
+
+    # Time Delay
+    Time_Delay = np.linspace(time_start,time_end,int(time_points))
+    
+    # PD PETF
+    coupling_function = "triangle"
+    
+    # Frequency Axis for Nyquist Plot
+    Nqy_freq = np.linspace(1e3, 100e6, int(1e3))
+    
+    #############################################################################
+    #           Nonlinear Function (including derivertive)
+    #############################################################################
+    
+    # transfer function of PD Input after PETF (Xpd) to CrossCoupling output in steady state
+    def  G_CPLG(H_PD, H_prime_PD=None, derivative=False):
+        
+        # fitment function parameters (from VCO_FreqVolt fit, ISCAS paper)
+        slope = 2.19447032e9 #1.94522384e9
+        VCO_qp = 20.80e9 #21.2284874e9
+        Vprebias = 2.55 #2.45 #2.55
+        AdderGain = 1.2 #1
+        
+        # Calulate Network frequency based on normalized PD Output
+        if not(derivative):
+            
+            # calculate PD output Voltage, based on H_PD and Offset of VCO Pre-Biasffset
+            A_PD = AdderGain * 2 * 0.8 * H_PD 
+            
+            # calculate vco frequency with nonlinear function
+            f_VCO = 2 * np.pi *( VCO_qp + slope * np.sqrt(Vprebias + A_PD) )
+            
+            # calulate network frequency
+            f_NET = f_VCO * 1/Div_N
+            
+            return f_NET
+
+            
+        # Calulate stability based on normalized PD Output (Both H_PD inputs are needed)
+        else:
+            
+            # calculate PD output Voltage, based on H_PD and Offset of VCO Pre-Biasffset
+            A_PD = 2 * 0.8 * H_PD
+            
+            # use in steady state this voltage to calcululate vco sensitivity (kvco)
+            K_VCO = (2*np.pi*slope) / (2*np.sqrt(Vprebias + A_PD))
+ 
+            # calulate Coupling Gain based on non-linear frequency sensitivity
+            CPLG_Gain = H_prime_PD * K_VCO * 1/Div_N
+            
+            return CPLG_Gain
+
+    #############################################################################
+    #           Calculate PLL Solution and Network Stability
+    #############################################################################
+    
+    # Mean Phase for Time Delay
+    PhaseError = Omega0_Div * Time_Delay
+    
+    # Correct Phase Delay by shift
+    PhaseError =  PhaseError - fb_phase 
+         
+    Solution = {}
+    
+    # Progressbar
+    l = len(PhaseError)
+    basic.printProgressBar(0, l, length = 50)
+ 
+    # Progressbar
+    l = len(PhaseError) * len(phi_mode)
+    basic.printProgressBar(0, l, length = 50)
+    
+    # running index
+    index = 0
+    
+    for indexPhimode, PhaseMode in enumerate(phi_mode):
+        
+        # Solution for this Phase
+        SolutionPhase = []
+        
+
+        for indexPhase, PhaseDelay in enumerate(PhaseError): 
+           
+            # calculate every 100th network stability
+            calc_networkstab = True if (indexPhase%Nqy_skip == 0) else False
+            
+            # calculate in-phase
+            SolutionPhase.append(Net_2Mutually(PhaseDelay, Omega0_Div, G_CPLG, s,
+                                          mode=PhaseMode, nonlinear=True,
+                                          coupling_function = coupling_function,
+                                          Nyquist_Freq = Nqy_freq,
+                                          calc_networkstab = calc_networkstab,
+                                          feedback_phase = fb_phase))
+                    
+            # Update Progress Bar
+            index += 1
+            basic.printProgressBar(index, l, length = 50)
+            
+        # Save Solution
+        Solution[str(PhaseMode/np.pi)] = {k: [dic[k] for dic in SolutionPhase] for k in SolutionPhase[0]}
+         
+     
+    # Some Infos
+    elapsed_time = time.time() - start_time
+    print("\033[0m" + "Calculations \033[32;1m" + "done" + "\033[0m! (Time needed: " + str(np.round(elapsed_time,3)) + "sec.)")
+    
+    # Generate VCO Frequency by Scaling with Division Factor
+    for SolutionPhase in Solution:
+        Solution[SolutionPhase]["VCO_Freq_Stable"] = np.asarray(Solution[SolutionPhase]["Network_Freq_Stable"])*Div_N
+        Solution[SolutionPhase]["VCO_Freq_UnStable"] = np.asarray(Solution[SolutionPhase]["Network_Freq_UnStable"])*Div_N   
+      
+    # Some Infos
+    print("\033[0m" + "Post-Processing \033[32;1m" + "done" + "\033[0m!")
+    
+    #############################################################################    
+    
+    return Solution
 

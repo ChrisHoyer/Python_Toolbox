@@ -50,6 +50,16 @@ import re
 # Black and White Style
 monochrome = (cycler('color', ['k']) * cycler('linestyle', ['-', '--', ':']) * cycler('marker', ['^', '.','v', '<', '>']))
 
+
+# Grid Crosses
+# https://stackoverflow.com/questions/54132998/draw-markers-at-intersections-of-grids-minor-ticks
+def set_grid_cross(ax):
+    xticks = ax.get_xticks(minor=True)
+    yticks = ax.get_yticks(minor=True)
+    xgrid, ygrid = np.meshgrid(xticks, yticks)
+    kywds = dict() 
+    grid_lines = ax.plot(xgrid, ygrid, 'o', markersize=0.1, color='lightgray', alpha=0.5)
+    
 #############################################################################
 ###         Import CSV File to a dictionary
 #############################################################################
@@ -768,7 +778,8 @@ def Linear_Plot(ax, Plot_list, X_label, Y_label, Legend=True, LegendLoc=0,
                 TwinX=None, TwinY=None, TwinReuseTicks="BOTH",  Ylim=None, Xlim=None,
                 XAutolim=True, fontsize=14, TicksEng=True, XTicksLabel=None,
                 YTicksLabel=None,legendcol=1,fontsize_label=14, yaxis_pad=0, xaxis_pad=0, 
-                BlackWhite=False, grid = True, **kwargs):
+                BlackWhite=False, grid = True, minorgridalpha=.3, majorgridalpha=.6,
+                **kwargs):
 #############################################################################  
     """
     Prepares a X-Y linear plot
@@ -972,11 +983,13 @@ def Linear_Plot(ax, Plot_list, X_label, Y_label, Legend=True, LegendLoc=0,
             ax.legend(framealpha=1, loc=LegendLoc, fontsize=fontsize, ncol=legendcol)
             
         if grid:
+            
             ax.minorticks_on()
-            ax.grid(which='major', alpha=1, linestyle='-',linewidth=1.2) 
-            ax.grid(which='minor', alpha=1, linestyle=':', linewidth=1)  
+            ax.grid(which='major', alpha=majorgridalpha, linestyle='-',linewidth=1.2) 
+            ax.grid(which='minor', alpha=minorgridalpha, linestyle=':', linewidth=1)
+            
+            
 
-        
     #retrn
     return ax
 
@@ -987,7 +1000,8 @@ def Linear_Plot(ax, Plot_list, X_label, Y_label, Legend=True, LegendLoc=0,
 def Polar_Plot(ax, Plot_list, X_label, Y_label, Legend=True, LegendLoc=0,
                 deg2rad = True, fontsize=14, TicksEng=True, XTicksLabel=None, 
                 legendcol=1,fontsize_label=14, yaxis_pad=0, xaxis_pad=0, 
-                BlackWhite=False, grid = True, **kwargs):
+                BlackWhite=False, grid = True, minorgridalpha=0.25,
+                majorgridalpha=0.5, **kwargs):
 #############################################################################  
     """
     Prepares a X-Y linear plot
@@ -1124,9 +1138,10 @@ def Polar_Plot(ax, Plot_list, X_label, Y_label, Legend=True, LegendLoc=0,
             ax.legend(framealpha=1, loc=LegendLoc, fontsize=fontsize, ncol=legendcol)
             
         if grid:
+            
             ax.minorticks_on()
-            ax.grid(which='major', alpha=1, linestyle='-',linewidth=1.2) 
-            ax.grid(which='minor', alpha=1, linestyle=':', linewidth=1)  
+            ax.grid(which='major', alpha=majorgridalpha, linestyle='-',linewidth=1.2) 
+            ax.grid(which='minor', alpha=minorgridalpha, linestyle=':', linewidth=1)
 
         
     #retrn
@@ -1138,7 +1153,8 @@ def Polar_Plot(ax, Plot_list, X_label, Y_label, Legend=True, LegendLoc=0,
 def Histogram_Plot(ax, Plot_list, X_label, Y_label, Legend=True, LegendLoc=0,
                 deg2rad = True, fontsize=14, TicksEng=True, XTicksLabel=None, 
                 legendcol=1,fontsize_label=14, yaxis_pad=0, xaxis_pad=0, 
-                BlackWhite=False, grid = True, FreedmanDiacoins=True, **kwargs):
+                BlackWhite=False,  grid = True, minorgridalpha=0.25,
+                majorgridalpha=0.5, FreedmanDiacoins=True, **kwargs):
 #############################################################################  
     """
     Prepares a X-Y linear plot
@@ -1293,9 +1309,10 @@ def Histogram_Plot(ax, Plot_list, X_label, Y_label, Legend=True, LegendLoc=0,
             ax.legend(framealpha=1, loc=LegendLoc, fontsize=fontsize, ncol=legendcol)
             
         if grid:
+            
             ax.minorticks_on()
-            ax.grid(which='major', alpha=1, linestyle='-',linewidth=1.2) 
-            ax.grid(which='minor', alpha=1, linestyle=':', linewidth=1)  
+            ax.grid(which='major', alpha=majorgridalpha, linestyle='-',linewidth=1.2) 
+            ax.grid(which='minor', alpha=minorgridalpha, linestyle=':', linewidth=1) 
 
         
     #retrn
@@ -1306,7 +1323,8 @@ def Histogram_Plot(ax, Plot_list, X_label, Y_label, Legend=True, LegendLoc=0,
 #############################################################################
 def Box_Plot(ax, XDataset , YDataset, X_label, Y_label, boxwidth=0,
              Legend="", LegendLoc=0, fontsize_label=12, yaxis_pad=0, xaxis_pad=0,
-             Ylim=None, XAutolim=False, grid=False, fontsize=12, **kwargs):
+             Ylim=None, XAutolim=False,  grid = True, minorgridalpha=0.25,
+             majorgridalpha=0.5, fontsize=12, **kwargs):
 #############################################################################  
     """
     Prepares a X-Y linear plot
@@ -1397,8 +1415,9 @@ def Box_Plot(ax, XDataset , YDataset, X_label, Y_label, boxwidth=0,
     if grid:
         ax.minorticks_on()
         ax.grid(True, which='major')
-        ax.grid(which='minor', alpha=1, linestyle=':', linewidth=1)
-        ax.grid(which='major', alpha=1, linewidth=1.2) 
+        ax.grid(which='major', alpha=majorgridalpha, linestyle='-',linewidth=1.2) 
+        ax.grid(which='minor', alpha=minorgridalpha, linestyle=':', linewidth=1)
+            
     else:
         ax.set_xticks(xticks_old)
         
@@ -1445,8 +1464,9 @@ def Box_Plot(ax, XDataset , YDataset, X_label, Y_label, boxwidth=0,
 #############################################################################
 def SemiLogX_Plot(ax, Plot_list, X_label, Y_label, Legend=True, LegendLoc=0, 
                   TwinX=None, Ylim=None, Xlim=None,  XAutolim=True, fontsize=12,
-                  TicksEng=True, legendcol=1,
-                  LegendAlpha=1, BlackWhite=False, XTicksLabel=None, **kwargs):
+                  TicksEng=True, legendcol=1, LegendAlpha=1, BlackWhite=False,
+                  XTicksLabel=None, grid = True, minorgridalpha=0.25,
+                  majorgridalpha=0.5, **kwargs):
 #############################################################################  
     """
     Prepares a X Log and Y Linear plot
@@ -1572,10 +1592,11 @@ def SemiLogX_Plot(ax, Plot_list, X_label, Y_label, Legend=True, LegendLoc=0,
             ax.legend(framealpha=1, loc=LegendLoc, fontsize=fontsize, ncol=legendcol)
     
         # Generate new Grid
-        ax.minorticks_on()
-        ax.grid(True, which='major')
-        ax.grid(True, which='minor', alpha=1, linestyle=':', linewidth=1)
-        ax.grid(True, which='major', alpha=1, linewidth=1.2)  
+        if grid:
+            
+            ax.minorticks_on()
+            ax.grid(which='major', alpha=majorgridalpha, linestyle='-',linewidth=1.2) 
+            ax.grid(which='minor', alpha=minorgridalpha, linestyle=':', linewidth=1)
       
     # =================================== 
     # xlimit Automatic fit?
@@ -1687,8 +1708,9 @@ def Vline_Plot(ax, xValue, xLabel, yDistance=0.5, yPos='up', color='r',
 #############################################################################
 ###         Generate Vertical Line with Label
 #############################################################################
-def Hline_Plot(ax, yValue, yLabel, xDistance=0.4, ydistance=0, xPos='right',
-               fontsize='12', verticalalignment='center', color='r', **kwargs):
+def Hline_Plot(ax, yValue, yLabel, xDistance=0.4, yDistance=0, xPos='right',
+               fontsize='12', verticalalignment='center', color='r',
+               TextBG="", **kwargs):
 #############################################################################  
     """
     Generates Vertical Line in Plot
@@ -1718,7 +1740,7 @@ def Hline_Plot(ax, yValue, yLabel, xDistance=0.4, ydistance=0, xPos='right',
 #############################################################################  
     # Add vertical line
     ax.axhline(y=yValue, color=color, **kwargs)
-    yValueLabel = yValue + ydistance
+    yValueLabel = yValue + yDistance
 
     # find y Position
     xlimits = ax.get_xlim()
@@ -1737,8 +1759,12 @@ def Hline_Plot(ax, yValue, yLabel, xDistance=0.4, ydistance=0, xPos='right',
         xlimits = (xlimits[1] - xlimits[0])/2 + xlimits[0]
         
     # generate Text            
-    ax.text(xlimits+xdistance, yValueLabel, yLabel, color=color,
-            fontsize=fontsize, verticalalignment=verticalalignment)  
+    t = ax.text(xlimits+xdistance, yValueLabel, yLabel, color=color,
+                fontsize=fontsize, verticalalignment=verticalalignment,
+                horizontalalignment="center") 
+    
+    if TextBG:
+        t.set_bbox(dict(facecolor=TextBG, alpha=0.6, linewidth=0))
     
     # jump back
     return
