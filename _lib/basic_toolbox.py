@@ -776,8 +776,8 @@ def Linearization_Point(XData, YData, XPoint, Tolerance, num=100,
 #############################################################################
 def Linear_Plot(ax, Plot_list, X_label, Y_label, Legend=True, LegendLoc=0,
                 TwinX=None, TwinY=None, TwinReuseTicks="BOTH",  Ylim=None, Xlim=None,
-                XAutolim=True, fontsize=14, TicksEng=True, XTicksLabel=None,
-                YTicksLabel=None,legendcol=1,fontsize_label=14, yaxis_pad=0, xaxis_pad=0, 
+                XAutolim=True, fontsize=7, TicksEng=True, XTicksLabel=None,
+                YTicksLabel=None,legendcol=1,fontsize_label=8, yaxis_pad=0, xaxis_pad=0, 
                 BlackWhite=False, grid = True, minorgridalpha=.3, majorgridalpha=.6,
                 **kwargs):
 #############################################################################  
@@ -1648,7 +1648,7 @@ def SemiLogX_Plot(ax, Plot_list, X_label, Y_label, Legend=True, LegendLoc=0,
 ###         Generate Vertical Line with Label
 #############################################################################
 def Vline_Plot(ax, xValue, xLabel, yDistance=0.5, yPos='up', color='r',
-               fontsize=12, horizontalalignment='center', **kwargs):
+               fontsize=6, horizontalalignment='center', **kwargs):
 #############################################################################  
     """
     Generates Vertical Line in Plot
@@ -1709,7 +1709,7 @@ def Vline_Plot(ax, xValue, xLabel, yDistance=0.5, yPos='up', color='r',
 ###         Generate Vertical Line with Label
 #############################################################################
 def Hline_Plot(ax, yValue, yLabel, xDistance=0.4, yDistance=0, xPos='right',
-               fontsize='12', verticalalignment='center', color='r',
+               fontsize=6, verticalalignment='center', color='r',
                TextBG="", **kwargs):
 #############################################################################  
     """
