@@ -1322,9 +1322,9 @@ def Histogram_Plot(ax, Plot_list, X_label, Y_label, Legend=True, LegendLoc=0,
 ###         Generate statistic Boxplot
 #############################################################################
 def Box_Plot(ax, XDataset , YDataset, X_label, Y_label, boxwidth=0,
-             Legend="", LegendLoc=0, fontsize_label=12, yaxis_pad=0, xaxis_pad=0,
-             Ylim=None, XAutolim=False,  grid = True, minorgridalpha=0.25,
-             majorgridalpha=0.5, fontsize=12, **kwargs):
+             Legend="", LegendLoc=0, fontsize_label=8, yaxis_pad=0, xaxis_pad=0,
+             Ylim=None, grid=True, minorgridalpha=0.25,
+             majorgridalpha=0.5, fontsize=7, **kwargs):
 #############################################################################  
     """
     Prepares a X-Y linear plot
@@ -1372,10 +1372,9 @@ def Box_Plot(ax, XDataset , YDataset, X_label, Y_label, boxwidth=0,
 
     # save xticks and xlim before
     xticks_old = ax.get_xticks()
-    xlim_old = ax.get_xlim()
     
-    # find all old legends
-    legend_old_handles, legend_old_labels = ax.get_legend_handles_labels()
+    # find all  legends
+    legend_handles, legend_labels = ax.get_legend_handles_labels()
         
     # rescaling of the y-axis required?
     if len(Y_label) == 3:
@@ -1396,6 +1395,7 @@ def Box_Plot(ax, XDataset , YDataset, X_label, Y_label, boxwidth=0,
     # label
     ax.set_ylabel(Y_label[0], labelpad=yaxis_pad)
     ax.yaxis.set_major_formatter(tck.EngFormatter(unit=Y_label[1]))
+    
     ax.set_xlabel(X_label[0], labelpad=xaxis_pad)
     ax.xaxis.set_major_formatter(tck.EngFormatter(unit=X_label[1]))
         
@@ -1405,11 +1405,13 @@ def Box_Plot(ax, XDataset , YDataset, X_label, Y_label, boxwidth=0,
         
     if Legend:
         
-        legend_old_handles.append(bp["boxes"][0])
-        legend_old_labels.append(Legend)
         
-        # legend
-        ax.legend(legend_old_handles, legend_old_labels, loc=LegendLoc)
+        print(len(legend_handles))
+        
+        legend_handles.append(bp["boxes"][0])
+        legend_labels.append(Legend)
+
+        ax.legend(legend_handles, legend_labels, framealpha=1, loc=LegendLoc, fontsize=fontsize)
 
     # Generate new Grid
     if grid:
@@ -1430,34 +1432,9 @@ def Box_Plot(ax, XDataset , YDataset, X_label, Y_label, boxwidth=0,
     for item in ([ax.xaxis.label, ax.yaxis.label]):
         item.set_fontsize(fontsize_label)
         
-    # xlimit
-    if XAutolim:
-        
-        # search min and max x values of all axes
-        x_limit_min = np.min(XDataset[0])
-        x_limit_max = np.max(XDataset[0])
-        
-        # iterate all traces
-        for trace in ax.get_lines():
-            
-            # find new min value
-            if np.min(trace.get_xdata()) < x_limit_min:
-                x_limit_min = np.min(trace.get_xdata())
- 
-            # find new min value
-            if np.max(trace.get_xdata()) > x_limit_max:
-                x_limit_max = np.max(trace.get_xdata())           
-        
-        # set x limit
-        ax.set_xlim([x_limit_min,x_limit_max])
-        
-    else:
-        ax.set_xlim(xlim_old)
-        
-
     
     #retrn
-    return [ax, bp]
+    return [bp, ax]
 
 #############################################################################
 ###         Generate Plot for Frequency Domain / SemilogX
