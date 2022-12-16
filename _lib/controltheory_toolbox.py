@@ -271,11 +271,7 @@ def BodePlot_FBCTRL(feedforward, feedback, freq, variable="", evaluation="lambdi
 #############################################################################
 #           Generate BodePlot out of symbolic transfer function
 #############################################################################
-def BodePlot(system, freq, fig ,label="", evaluation="lambdify",
-             PlotBlackWhite=False, plotphase=True,
-             Ylim_dB = [], Ylim_PH = [],
-             Xlabel_freq = ['', 'Hz'], Ylabel_dB = ["", 'dB'],
-             Ylabel_PH = ["", '$^\circ$']):
+def BodePlot(system, freq, evaluation="lambdify"):
  
 ############################################################################# 
     """
@@ -286,27 +282,15 @@ def BodePlot(system, freq, fig ,label="", evaluation="lambdify",
     =====================  =============================================:
     system                  symbolic systems transfer function
     freq                    frequency span
-    fig                     matplot figure
-    Ylim_dB                 (optional) Y Axis for dB Limits
-    Ylim_PH                 (optional) Y Axis for Phase Limits
     evaluation              (optional) define the used evalutaion function (lambdify|subs) 
-    PlotBlackWhite          (optional) plot only in black and white
-    Xlabel_freq             (optional) Label and Unit of Frequency X-Axis
-    Ylabel_dB               (optional) Label and Unit of dB Y-Axis 
-    Ylabel_PH               (optional) Label and Unit of phase Y-Axis
 
     
     return type
-       plot
+       [XAxis, YMagnitude, YPhase]
        
     """   
  ############################################################################# 
-
-    # Plot Settings
-    plot_mag = []
-    plot_phase = []
-
-    # ===================================     
+  
         
     # Frequency Scale to j*w
     omega = 2j*np.pi * freq
@@ -314,38 +298,9 @@ def BodePlot(system, freq, fig ,label="", evaluation="lambdify",
     # Generate OpenLoop Transfer Function
     system_extract = Extract_Sympy_1Var(system, omega, evaluation=evaluation)
     system_extract = basic.CMPLX2Format(system_extract)
- 
-    # Generate Magnitude Plot Settings
-    plot_mag.append([freq, system_extract['dB'], 'Magnitude' + str(label)])
-            
-    if plotphase:
-        # Generate Magnitude Plot Settings
-        plot_phase.append([freq, system_extract['PhaseDeg'], 'Phase'  + str(label)])  
-   
-    # =================================== 
-    # Generate Plot
-    
-    # plot with phase
-    if plotphase:
-        ax1 = plt.subplot(211)
-        ax2 = plt.subplot(212)
-        fig.add_axes(ax1)
-        fig.add_axes(ax2)
-         
-        basic.SemiLogX_Plot(ax1, plot_mag, Xlabel_freq, Ylabel_dB,
-                            Ylim=Ylim_dB, BlackWhite=PlotBlackWhite)
-        basic.SemiLogX_Plot(ax2, plot_phase, Xlabel_freq, Ylabel_PH,
-                            Ylim=Ylim_PH, BlackWhite=PlotBlackWhite)
-            
-    else:
-        ax1 = plt.subplot(111)
-        fig.add_axes(ax1)
-        
-        
-        basic.SemiLogX_Plot(ax1, plot_mag, Xlabel_freq, Ylabel_dB, BlackWhite=PlotBlackWhite)      
-       
+     
     # return plot
-    return plt
+    return [freq, system_extract['dB'], system_extract['PhaseDeg']]
  
 #############################################################################
 #           Generate BodePlot out of symbolic transfer function
