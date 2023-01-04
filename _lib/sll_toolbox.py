@@ -18,9 +18,10 @@ import time
 import numpy as np
 import scipy as sp
 from scipy import signal
+import matplotlib.pyplot as plt
 
 #############################################################################
-###                 Linear Network with 2 Mutually Coupled Oscillators
+###                 PLL Network Solver
 #############################################################################
 def Net_2Mutually(phase_delay, omega0_div, G_CPLG, variable, 
                   mode = 0, nonlinear = False,
@@ -444,7 +445,7 @@ def Calc_linear(time_start=0, time_end=10e-9, time_points=1e3,
                 Div_N=16*32, K_VCO=2*np.pi*757.47e6,
                 K_PD = 1.6, K_LF = 1, fb_phase = 0,  
                 s = sympy.Symbol('s'), Nqy_freq = np.linspace(1e3, 100e6, int(1e3)),
-                Nqy_skip = 10, phi_mode = [0, np.pi]):
+                Nqy_skip = 10, phi_mode = [0, np.pi], coupling_function = "triangle"):
     #############################################################################    
     """
     Simple Network of two coupled PLL System in Laplace Domain with default values from
@@ -495,8 +496,7 @@ def Calc_linear(time_start=0, time_end=10e-9, time_points=1e3,
     Time_Delay = np.linspace(time_start,time_end,int(time_points))
     
     # PD Phase-Error Transfer Function
-    coupling_function = "triangle"
-        
+    
       
     #############################################################################
     #           Calculate PLL Solution and Network Stability
@@ -884,3 +884,217 @@ def Calc_nonlinear(time_start=0, time_end=10e-9, time_points=1e3,
     
     return Solution
 
+#############################################################################
+###                 Kuramoto Model
+#############################################################################
+
+def Kuramoto_FindSetting(Delta, Final, threshold = 1e-3):
+    
+    def FindTrue(arr, threshold = 25):
+        count = 0
+
+        for i, val in enumerate(arr):
+
+            if val:
+                count += 1
+            else:
+                count = 0
+                
+            if count == threshold:
+                return i - threshold
+            
+        return -1
+
+    Phase_Normalized = Delta - Final
+    Phase_Slope_Threshold = ( np.abs( np.diff(Phase_Normalized) ) <  threshold )[:-1]
+    Index_PhaseSync =  FindTrue( Phase_Slope_Threshold )
+    
+    # Check if negative
+    if Index_PhaseSync < 0:
+        Index_PhaseSync = 0    
+    
+    # Return Index
+    return Index_PhaseSync
+
+
+def Timeseries_Kuramoto_2Osc(omega1 = 1.0, omega2 = 1.5,
+                             theta1_0 = 0.0, theta2_0 = np.pi,
+                             K1 = 0.5, K2 = 0.5,
+                             delay12 = 200, delay21=200,
+                             T = 200, dt = 0.01):
+#############################################################################    
+    """
+   Kuramoto Model with Time Delay and two coupled Oscillators   
+    """
+
+############################################################################# 
+    
+    data = {}
+
+    # Arrays to store the time series
+    t = np.arange(0, T, dt)
+    data["time"] = t
+    data["delay12"] = delay12
+    data["delay21"] = delay21
+    
+    data["theta1"] = np.zeros(len(t))
+    data["theta2"] = np.zeros_like(data["theta1"])
+
+    # array to store the frequency of oscillator 
+    data["frequency1"] = np.zeros_like(data["theta1"])
+    data["frequency2"] = np.zeros_like(data["theta1"])
+
+     # array to store the order parameter
+    data["order_parameter"] = np.zeros_like(data["theta1"]) 
+
+    # Set initial conditions
+    data["theta1"][0] = theta1_0
+    data["theta2"][0] = theta2_0
+    
+    data["frequency1"][0] = omega1
+    data["frequency2"][0] = omega2
+
+    # do the loop
+    for i in range(1, len(t)):
+        
+        # Do the Math
+        data["theta1"][i] = data["theta1"][i-1] + dt*(omega1 
+                                  + K1*np.sin(data["theta2"][i-1-int(delay21/dt)] - data["theta1"][i-1]))
+       
+        data["theta2"][i] = data["theta2"][i-1] + dt*(omega2 
+                                  + K2*np.sin(data["theta1"][i-1-int(delay12/dt)] - data["theta2"][i-1]))
+        
+        # Calculate the order parameter
+        r1 = np.exp(1j*data["theta1"][i])
+        r2 = np.exp(1j*data["theta2"][i])
+        data["order_parameter"][i] = np.abs((r1 + r2))/2
+    
+        # Calculate the frequency of each oscillator
+        data["frequency1"][i] = (data["theta1"][i] - data["theta1"][i-1])/dt
+        data["frequency2"][i] = (data["theta2"][i] - data["theta2"][i-1])/dt
+        
+    
+    # Some calculations
+    data["theta1_deg"] = data["theta1"] * 180/np.pi
+    data["theta2_deg"] = data["theta2"] * 180/np.pi
+    
+    # Phase Wrapping
+    data["delta_theta"] = data["theta1"] - data["theta2"]
+    data["delta_theta"] = data["delta_theta"]/np.pi
+    
+    data["delta_freq"] = (data["frequency1"] - data["frequency2"])
+
+    # initial values
+    data["initial_phase"] = data["delta_theta"][int(delay12/dt)]
+
+    # Final values
+    data["final_phase"] = data["delta_theta"][-1]
+    data["final_frequency1"] =  data["frequency1"][-1]       
+    data["final_frequency2"] =  data["frequency2"][-1] 
+    
+    data["final_phase"] = data["delta_theta"][-1]
+
+    
+    # extract time of the transient process
+    data["SettlingTime_Phase"] = data["time"][ Kuramoto_FindSetting(data["delta_theta"],
+                                                                    data["final_phase"],
+                                                                    threshold = 1e-3) ]
+    
+    data["SettlingTime_Freq"] = data["time"][ Kuramoto_FindSetting(data["delta_freq"],
+                                                                   data["final_frequency2"],
+                                                                   threshold = 1e-4) ]
+
+    data["SettlingTime"] = np.mean([data["SettlingTime_Phase"], data["SettlingTime_Freq"]])
+    
+    return data
+
+def BasinAttraction_Kuramoto_2Osc(omega1 = 1.0,
+                                  omega_diff_range = np.arange(-1, 1, 0.5),
+                                  theta_mean = 0.0,
+                                  theta_diff_range = np.arange(-np.pi, np.pi, 0.5),
+                                  K1 = 0.5, K2 = 0.5,
+                                  delay12 = 200, delay21=200,
+                                  dt = 0.01):
+#############################################################################    
+    """
+   Kuramoto Model with Time Delay and two coupled Oscillators   
+    """
+
+############################################################################# 
+
+    data = {}
+
+    # Simulate delay + x steps
+    T = delay12 + 10*dt
+    
+    data["tsim"] = np.arange(0, T, dt)
+    
+       
+    # Initialize the results array
+    data["grid"] = np.meshgrid(omega_diff_range,
+                               theta_diff_range)
+    
+    data["matrix"] = np.zeros((len(omega_diff_range),
+                               len(theta_diff_range)))
+    
+    data["delta_phase"] = []
+    data["delta_freq"] = []
+    
+    data["omega2"] = []
+    
+    data["theta1"] = []
+    data["theta2"] = []
+    
+    # Loop through the frequency differences
+    for i, omega_diff in enumerate(omega_diff_range):
+        
+        # Set the natural frequency of oscillator 2
+        omega2 = omega1 + omega_diff
+        data["omega2"].append(omega2)
+        
+        # Loop through the phase differences
+        for j, delta in enumerate(theta_diff_range):
+               
+            # Initialize the phase and frequency arrays
+            theta1 = np.zeros(int(T/dt))
+            theta2 = np.zeros(int(T/dt))
+            
+            freq1 = np.zeros(int(T/dt))
+            freq2 = np.zeros(int(T/dt))
+            
+            theta1[0] = theta_mean
+            theta2[0] = delta
+            
+            data["theta1"].append(theta1)            
+            data["theta2"].append(theta2)
+                                
+            for t in range(1, int(T/dt)):
+                
+                # Compute the delayed phases
+                theta1_delay = theta1[t - 1 - int(delay12/dt)]
+                theta2_delay = theta2[t - 1- int(delay21/dt)]
+                
+
+                # Do the Math
+                theta1[t] = theta1[t-1] + dt * (omega1
+                                                +  K1 * np.sin(theta2_delay - theta1[t-1]))
+                
+                theta2[t] = theta2[t-1] + dt * (omega2
+                                                +  K2 * np.sin(theta1_delay - theta2[t-1]))
+
+                # Calculate the frequency of each oscillator
+                freq1[t] = (theta1[t] - theta1[t-1])/dt
+                freq2[t] = (theta2[t] - theta2[t-1])/dt
+                
+            # Simulate Time Series
+            first_index = int(delay12/dt)+1
+            #first_index = 1
+            
+            data["delta_phase"].append(theta1[first_index:] - theta2[first_index:])
+            data["delta_freq"].append(freq1[first_index:] - freq2[first_index:])
+              
+            # Compute the final phase difference
+            data["matrix"][i, j] = theta2[-1] - theta1[-1]
+    
+    # return dataset
+    return data
