@@ -23,6 +23,8 @@ import matplotlib.pyplot as plt
 #############################################################################
 ###                 PLL Network Solver
 #############################################################################
+
+# Solving two mutually coupled PLL Nodes
 def Net_2Mutually(phase_delay, omega0_div, G_CPLG, variable, 
                   mode = 0, nonlinear = False,
                   feedback_phase = 0,
@@ -314,7 +316,74 @@ def Net_2Mutually(phase_delay, omega0_div, G_CPLG, variable,
             
     return return_var
 
-                              
+# Iterative Task during Simulation
+def Perform_Timeseries_Simulation(t_index, dt, results, Osc_Param, Network_Param):
+    
+    #############################################################################    
+    """
+    Subfunction, which is called for each transient step during simulation
+    
+    parameters              description
+    =====================  =============================================:
+    t_index                 current time index
+    results                 result vector storing transient results
+    Osc_Param               dictionary containing oscillator parameters
+    Network_Param           dictionary containing network parameters
+
+    """
+    #############################################################################
+    
+    def PD_Fct(phase1, phase2, pd_fct):
+        
+        # phase error
+        phase_error = phase1 - phase2
+        
+        if pd_fct == "XOR":
+            return sp.signal.sawtooth(phase_error, width=0.5)
+            
+        else:
+            return np.sin(phase_error)
+
+
+    #############################################################################
+    
+    # Calculus for each oscillator
+    for osc_index in range(len(results)):
+        
+        # calculate cross-coupling component
+        cplg_value = 0
+        
+        # iterate each coupled node
+        for cplg_index in range( np.size(Network_Param["cplg_gain"][osc_index, ::]) ):
+            
+            # Get coupling gain and delay
+            cplg_gain = Network_Param["cplg_gain"][osc_index, cplg_index]
+            cplg_delay = Network_Param["cplg_delay"][osc_index, cplg_index]
+            
+            # get latest values of coupled oscillator
+            cplg_theta = results[cplg_index]["theta"]
+            
+            # calculate coupling phase value
+            phase_own = results[osc_index]["theta"][ t_index - 1 ]
+            phase_cplg = cplg_theta[ t_index - 1 - int(cplg_delay/dt) ]
+            
+            cplg_value += cplg_gain * PD_Fct(phase_cplg, phase_own, Osc_Param[osc_index]["pd_fct"])
+            
+
+        # calculate oscillator component
+        osc_value = Osc_Param[osc_index]["omega0"] + Osc_Param[osc_index]["node_gain"] * cplg_value
+        
+        # calulate instantaneous phase
+        results[osc_index]["theta"][t_index] = results[osc_index]["theta"][t_index -1] + dt * osc_value
+        
+        # calculate frequency
+        angular_frequency = (results[osc_index]["theta"][t_index] - results[osc_index]["theta"][t_index - 1])/dt
+        results[osc_index]["frequency"][t_index] =  angular_frequency/(2*np.pi)
+        
+    
+    # return results    
+    return results
+                            
 #############################################################################
 ###              3th/3.5th Generation, Homogen and Linear
 #############################################################################  
@@ -885,7 +954,7 @@ def Calc_nonlinear(time_start=0, time_end=10e-9, time_points=1e3,
     return Solution
 
 #############################################################################
-###                 Kuramoto Model
+###                Dynamical Model
 #############################################################################
 
 def Kuramoto_FindSetting(Delta, Final, threshold = 1e-3):
@@ -916,12 +985,12 @@ def Kuramoto_FindSetting(Delta, Final, threshold = 1e-3):
     # Return Index
     return Index_PhaseSync
 
-
-def Timeseries_Kuramoto_2Osc(omega1 = 1.0, omega2 = 1.5,
+def Timeseries_OscCoupled_2(omega1 = 1.0, omega2 = 1.5,
                              theta1_0 = 0.0, theta2_0 = np.pi,
                              K1 = 0.5, K2 = 0.5,
                              delay12 = 200, delay21=200,
-                             T = 200, dt = 0.01):
+                             T = 200, dt = 0.01,
+                             coupling_fct="sin"):
 #############################################################################    
     """
    Kuramoto Model with Time Delay and two coupled Oscillators   
@@ -929,6 +998,24 @@ def Timeseries_Kuramoto_2Osc(omega1 = 1.0, omega2 = 1.5,
 
 ############################################################################# 
     
+    # calulate correct coupling
+    def Cplg_fct(phase1, phase2):
+        
+        phase_error = phase1 - phase2
+        
+        # Sinusodial
+        if coupling_fct == "sin":
+            return np.sin(phase_error)
+            
+        # Sinusodial
+        if coupling_fct == "XOR":
+            return 0.5*sp.signal.sawtooth(phase_error, width=0.5)
+
+
+
+
+############################################################################# 
+
     data = {}
 
     # Arrays to store the time series
@@ -959,10 +1046,10 @@ def Timeseries_Kuramoto_2Osc(omega1 = 1.0, omega2 = 1.5,
         
         # Do the Math
         data["theta1"][i] = data["theta1"][i-1] + dt*(omega1 
-                                  + K1*np.sin(data["theta2"][i-1-int(delay21/dt)] - data["theta1"][i-1]))
+                                  + K1 * Cplg_fct( data["theta2"][i-1-int(delay21/dt)], data["theta1"][i-1]) )
        
         data["theta2"][i] = data["theta2"][i-1] + dt*(omega2 
-                                  + K2*np.sin(data["theta1"][i-1-int(delay12/dt)] - data["theta2"][i-1]))
+                                  + K2 * Cplg_fct( data["theta1"][i-1-int(delay21/dt)], data["theta2"][i-1]) )
         
         # Calculate the order parameter
         r1 = np.exp(1j*data["theta1"][i])
@@ -1098,3 +1185,128 @@ def BasinAttraction_Kuramoto_2Osc(omega1 = 1.0,
     
     # return dataset
     return data
+
+#############################################################################
+###                 Dynamical Model
+#############################################################################
+  
+# Simulation of coupled oscillators
+def Run_Timeseries(Osc_Param, Network_Param, tstop, dt):
+    
+    #############################################################################    
+    """
+    Calculate Coupled Networks using Euler Scheme
+    
+    parameters              description
+    =====================  =============================================:
+    tstop                   Stop time or maximale time
+    dt                      time step
+    
+    Osc_Param               array containing oscillator parameters as dict
+    
+                            Osc_Param[<osc_index>]["omega0"]
+                            Osc_Param[<osc_index>]["theta0"]
+                            Osc_Param[<osc_index>]["node_gain"]
+                            Osc_Param[<osc_index>]["pd_fct"]              
+                            
+    Network_Param           dictionary containing network parameters
+
+                            Network_Param["cplg_gain"]  = < matrix >
+                            Network_Param["cplg_delay"] = < matrix >
+                            
+                            
+    example with 3 nodes in chain
+
+
+            Omega0_Net = 2 * np.pi * 23.5e9 / 512
+            Node_Gain = (1.6/2 * 1 * 2*np.pi*757.47e6)/512
+            
+            delay1 = 20e-9
+            delay2 = 20e-9
+            
+            Osc_Param = []
+            
+            # oscillator A
+            Osc_Param.append( {"omega0": Omega0_Net,
+                               "theta0": 0,
+                               "node_gain": Node_Gain,
+                               "pd_fct": "XOR"} )
+            
+            # oscillator B
+            Osc_Param.append( {"omega0": Omega0_Net,
+                               "theta0": 1.1*np.pi,
+                               "node_gain": Node_Gain,
+                               "pd_fct": "XOR"} )
+            
+            # oscillator C
+            Osc_Param.append( {"omega0": Omega0_Net,
+                               "theta0": 0.9*np.pi,
+                               "node_gain": Node_Gain,
+                               "pd_fct": "XOR"} )
+            
+            # Network Topology
+            Network_Param = {
+                            "cplg_gain": np.matrix([[0, 1, 0],
+                                                    [1, 0, 1],
+                                                    [0, 1, 0]]),
+                            
+                             "cplg_delay": np.matrix([[0, delay1, 0],
+                                                      [delay1, 0, delay2],
+                                                      [0, delay2, 0]])
+                             }
+            
+            
+            [time, results] = sll.Run_Timeseries(Osc_Param,Network_Param, 2e-6, 1e-9)                            
+
+    """
+    #############################################################################
+
+    # return dictionary
+    results = []
+
+    # simulation time series
+    t = np.arange(0, tstop, dt)
+
+    # Some Infos
+    print("\033[34;1m" + "Simulation of coupled Oscillators")
+    print("\033[34;1m" + "-> Stop Time {}s using step size {}s ({} points)".format(basic.EngNot(tstop),
+                                                                                   basic.EngNot(dt),
+                                                                                   basic.EngNot(len(t))) )
+    start_time = time.time()
+    
+    # Initialize solution arrays
+    for osc_index in range(len(Osc_Param)):
+        
+        oscdata = {}
+        oscdata["frequency"] = np.zeros(len(t))     # oscillator frequency
+        oscdata["theta"]     = np.zeros(len(t))     # oscillator instantaneous phase
+        
+        # init values
+        oscdata["frequency"][0] = Osc_Param[osc_index]["omega0"]/(2*np.pi)
+        oscdata["theta"][0] = Osc_Param[osc_index]["theta0"]
+        
+        print("\033[34;1m" + "-> Oscillator {}: initial frequency {}Hz and initial phase {}\033[0m".format(osc_index+1,
+                                                                                               basic.EngNot(Osc_Param[osc_index]["omega0"]/(2*np.pi)),
+                                                                                               basic.EngNot(Osc_Param[osc_index]["theta0"]) ))
+        
+        results.append(oscdata)
+        
+    # Progressbar
+    basic.printProgressBar(0, len(t), length = 50)
+        
+    # calculus
+    for i in range(1, len(t)):
+        
+        # Calulation
+        Perform_Timeseries_Simulation(i, dt, results, Osc_Param, Network_Param)
+        
+        # Update Progress Bar
+        basic.printProgressBar(i + 1, len(t), length = 50) 
+        
+        
+    # Some Infos
+    elapsed_time = time.time() - start_time
+    print("\033[0m" + "Calculations \033[32;1m" + "done" + "\033[0m! (Time needed: " + str(np.round(elapsed_time,3)) + "sec.)")
+
+    return [t, results]
+    
