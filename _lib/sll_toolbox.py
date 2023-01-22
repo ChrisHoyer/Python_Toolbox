@@ -2,10 +2,16 @@
 #   Different Scripts to Model State-Locked-Loops
 #
 #   - Net_2Mutually: Simple Network in Laplace with two bidirectional coupled nodes to Calc Global Freq
+#   - Perform_Timeseries_Simulation: Internal Simulation Engine
 #
 #   Prototype Models
 #   - Calc_2Cplg_linear: Calculates important Values for Steady State Analysis
+#   - Calc_linear: Calculates important Values for Steady State Analysis
 #   - Calc_2Cplg_nonlinear: Calculates important Values for Steady State Analysis (nonlinear)
+#   - Calc_nonlinear: Calculates important Values for Steady State Analysis (nonlinear)
+#
+#  Dynamical Models
+#   - Run_Timeseries: Calulate Euler Simulation of Coupled Oscillators
 #
 #   Autor: C. Hoyer (info@chrishoyer.de)
 #   Date: 06-11-2021
@@ -338,9 +344,12 @@ def Perform_Timeseries_Simulation(t_index, dt, results, Osc_Param, Network_Param
         # phase error
         phase_error = phase1 - phase2
         
-        if pd_fct == "XOR":
+        if pd_fct.upper() == "XOR":
             return sp.signal.sawtooth(phase_error, width=0.5)
             
+        if pd_fct.upper() == "SIN":
+            return np.sin(phase_error)
+           
         else:
             return np.sin(phase_error)
 
@@ -377,8 +386,8 @@ def Perform_Timeseries_Simulation(t_index, dt, results, Osc_Param, Network_Param
         results[osc_index]["theta"][t_index] = results[osc_index]["theta"][t_index -1] + dt * osc_value
         
         # calculate frequency
-        angular_frequency = (results[osc_index]["theta"][t_index] - results[osc_index]["theta"][t_index - 1])/dt
-        results[osc_index]["frequency"][t_index] =  angular_frequency/(2*np.pi)
+        results[osc_index]["angular_frequency"][t_index] = (results[osc_index]["theta"][t_index] - results[osc_index]["theta"][t_index - 1])/dt
+        results[osc_index]["frequency"][t_index] =  results[osc_index]["angular_frequency"][t_index]/(2*np.pi)
         
     
     # return results    
@@ -954,244 +963,14 @@ def Calc_nonlinear(time_start=0, time_end=10e-9, time_points=1e3,
     return Solution
 
 #############################################################################
-###                Dynamical Model
-#############################################################################
-
-def Kuramoto_FindSetting(Delta, Final, threshold = 1e-3):
-    
-    def FindTrue(arr, threshold = 25):
-        count = 0
-
-        for i, val in enumerate(arr):
-
-            if val:
-                count += 1
-            else:
-                count = 0
-                
-            if count == threshold:
-                return i - threshold
-            
-        return -1
-
-    Phase_Normalized = Delta - Final
-    Phase_Slope_Threshold = ( np.abs( np.diff(Phase_Normalized) ) <  threshold )[:-1]
-    Index_PhaseSync =  FindTrue( Phase_Slope_Threshold )
-    
-    # Check if negative
-    if Index_PhaseSync < 0:
-        Index_PhaseSync = 0    
-    
-    # Return Index
-    return Index_PhaseSync
-
-def Timeseries_OscCoupled_2(omega1 = 1.0, omega2 = 1.5,
-                             theta1_0 = 0.0, theta2_0 = np.pi,
-                             K1 = 0.5, K2 = 0.5,
-                             delay12 = 200, delay21=200,
-                             T = 200, dt = 0.01,
-                             coupling_fct="sin"):
-#############################################################################    
-    """
-   Kuramoto Model with Time Delay and two coupled Oscillators   
-    """
-
-############################################################################# 
-    
-    # calulate correct coupling
-    def Cplg_fct(phase1, phase2):
-        
-        phase_error = phase1 - phase2
-        
-        # Sinusodial
-        if coupling_fct == "sin":
-            return np.sin(phase_error)
-            
-        # Sinusodial
-        if coupling_fct == "XOR":
-            return 0.5*sp.signal.sawtooth(phase_error, width=0.5)
-
-
-
-
-############################################################################# 
-
-    data = {}
-
-    # Arrays to store the time series
-    t = np.arange(0, T, dt)
-    data["time"] = t
-    data["delay12"] = delay12
-    data["delay21"] = delay21
-    
-    data["theta1"] = np.zeros(len(t))
-    data["theta2"] = np.zeros_like(data["theta1"])
-
-    # array to store the frequency of oscillator 
-    data["frequency1"] = np.zeros_like(data["theta1"])
-    data["frequency2"] = np.zeros_like(data["theta1"])
-
-     # array to store the order parameter
-    data["order_parameter"] = np.zeros_like(data["theta1"]) 
-
-    # Set initial conditions
-    data["theta1"][0] = theta1_0
-    data["theta2"][0] = theta2_0
-    
-    data["frequency1"][0] = omega1
-    data["frequency2"][0] = omega2
-
-    # do the loop
-    for i in range(1, len(t)):
-        
-        # Do the Math
-        data["theta1"][i] = data["theta1"][i-1] + dt*(omega1 
-                                  + K1 * Cplg_fct( data["theta2"][i-1-int(delay21/dt)], data["theta1"][i-1]) )
-       
-        data["theta2"][i] = data["theta2"][i-1] + dt*(omega2 
-                                  + K2 * Cplg_fct( data["theta1"][i-1-int(delay21/dt)], data["theta2"][i-1]) )
-        
-        # Calculate the order parameter
-        r1 = np.exp(1j*data["theta1"][i])
-        r2 = np.exp(1j*data["theta2"][i])
-        data["order_parameter"][i] = np.abs((r1 + r2))/2
-    
-        # Calculate the frequency of each oscillator
-        data["frequency1"][i] = (data["theta1"][i] - data["theta1"][i-1])/dt
-        data["frequency2"][i] = (data["theta2"][i] - data["theta2"][i-1])/dt
-        
-    
-    # Some calculations
-    data["theta1_deg"] = data["theta1"] * 180/np.pi
-    data["theta2_deg"] = data["theta2"] * 180/np.pi
-    
-    # Phase Wrapping
-    data["delta_theta"] = data["theta1"] - data["theta2"]
-    data["delta_theta"] = data["delta_theta"]/np.pi
-    
-    data["delta_freq"] = (data["frequency1"] - data["frequency2"])
-
-    # initial values
-    data["initial_phase"] = data["delta_theta"][int(delay12/dt)]
-
-    # Final values
-    data["final_phase"] = data["delta_theta"][-1]
-    data["final_frequency1"] =  data["frequency1"][-1]       
-    data["final_frequency2"] =  data["frequency2"][-1] 
-    
-    data["final_phase"] = data["delta_theta"][-1]
-
-    
-    # extract time of the transient process
-    data["SettlingTime_Phase"] = data["time"][ Kuramoto_FindSetting(data["delta_theta"],
-                                                                    data["final_phase"],
-                                                                    threshold = 1e-3) ]
-    
-    data["SettlingTime_Freq"] = data["time"][ Kuramoto_FindSetting(data["delta_freq"],
-                                                                   data["final_frequency2"],
-                                                                   threshold = 1e-4) ]
-
-    data["SettlingTime"] = np.mean([data["SettlingTime_Phase"], data["SettlingTime_Freq"]])
-    
-    return data
-
-def BasinAttraction_Kuramoto_2Osc(omega1 = 1.0,
-                                  omega_diff_range = np.arange(-1, 1, 0.5),
-                                  theta_mean = 0.0,
-                                  theta_diff_range = np.arange(-np.pi, np.pi, 0.5),
-                                  K1 = 0.5, K2 = 0.5,
-                                  delay12 = 200, delay21=200,
-                                  dt = 0.01):
-#############################################################################    
-    """
-   Kuramoto Model with Time Delay and two coupled Oscillators   
-    """
-
-############################################################################# 
-
-    data = {}
-
-    # Simulate delay + x steps
-    T = delay12 + 10*dt
-    
-    data["tsim"] = np.arange(0, T, dt)
-    
-       
-    # Initialize the results array
-    data["grid"] = np.meshgrid(omega_diff_range,
-                               theta_diff_range)
-    
-    data["matrix"] = np.zeros((len(omega_diff_range),
-                               len(theta_diff_range)))
-    
-    data["delta_phase"] = []
-    data["delta_freq"] = []
-    
-    data["omega2"] = []
-    
-    data["theta1"] = []
-    data["theta2"] = []
-    
-    # Loop through the frequency differences
-    for i, omega_diff in enumerate(omega_diff_range):
-        
-        # Set the natural frequency of oscillator 2
-        omega2 = omega1 + omega_diff
-        data["omega2"].append(omega2)
-        
-        # Loop through the phase differences
-        for j, delta in enumerate(theta_diff_range):
-               
-            # Initialize the phase and frequency arrays
-            theta1 = np.zeros(int(T/dt))
-            theta2 = np.zeros(int(T/dt))
-            
-            freq1 = np.zeros(int(T/dt))
-            freq2 = np.zeros(int(T/dt))
-            
-            theta1[0] = theta_mean
-            theta2[0] = delta
-            
-            data["theta1"].append(theta1)            
-            data["theta2"].append(theta2)
-                                
-            for t in range(1, int(T/dt)):
-                
-                # Compute the delayed phases
-                theta1_delay = theta1[t - 1 - int(delay12/dt)]
-                theta2_delay = theta2[t - 1- int(delay21/dt)]
-                
-
-                # Do the Math
-                theta1[t] = theta1[t-1] + dt * (omega1
-                                                +  K1 * np.sin(theta2_delay - theta1[t-1]))
-                
-                theta2[t] = theta2[t-1] + dt * (omega2
-                                                +  K2 * np.sin(theta1_delay - theta2[t-1]))
-
-                # Calculate the frequency of each oscillator
-                freq1[t] = (theta1[t] - theta1[t-1])/dt
-                freq2[t] = (theta2[t] - theta2[t-1])/dt
-                
-            # Simulate Time Series
-            first_index = int(delay12/dt)+1
-            #first_index = 1
-            
-            data["delta_phase"].append(theta1[first_index:] - theta2[first_index:])
-            data["delta_freq"].append(freq1[first_index:] - freq2[first_index:])
-              
-            # Compute the final phase difference
-            data["matrix"][i, j] = theta2[-1] - theta1[-1]
-    
-    # return dataset
-    return data
-
-#############################################################################
 ###                 Dynamical Model
 #############################################################################
   
 # Simulation of coupled oscillators
-def Run_Timeseries(Osc_Param, Network_Param, tstop, dt):
+def Run_Timeseries(Osc_Param, Network_Param, tstop, dt,
+                   threshold_steadystate_phase=1e-3,
+                   threshold_steadystate_freq=1e-4,
+                   PrintOutput=True):
     
     #############################################################################    
     """
@@ -1214,6 +993,9 @@ def Run_Timeseries(Osc_Param, Network_Param, tstop, dt):
                             Network_Param["cplg_gain"]  = < matrix >
                             Network_Param["cplg_delay"] = < matrix >
                             
+                            
+    threshold_steadystate_phase         threshold for detection of steady state of the phase
+    threshold_steadystate_freq          threshold for detection of steady state of the frequency                            
                             
     example with 3 nodes in chain
 
@@ -1261,6 +1043,34 @@ def Run_Timeseries(Osc_Param, Network_Param, tstop, dt):
     """
     #############################################################################
 
+    # Steady State detector
+    def SteadyStateDetection(dataset, threshold_steadystate):
+ 
+        # Find number of threshold times true in a row
+        def FindTrue(arr, threshold = 25):
+            count = 0
+    
+            for i, val in enumerate(arr):
+                if val: count += 1
+                else: count = 0
+                    
+                if count == threshold: return i - threshold
+                
+            return -1
+        
+        Delta_Norm = dataset - dataset[-1]
+        Delta_Threshold = ( np.abs( np.diff(Delta_Norm) ) <  threshold_steadystate )[:-1]
+        
+        Index_SteadyState = FindTrue( Delta_Threshold )
+        
+        # Check if negative
+        if Index_SteadyState < 0: Index_SteadyState = 0    
+        
+        # Return Index
+        return Index_SteadyState        
+
+    #############################################################################
+    
     # return dictionary
     results = []
 
@@ -1268,28 +1078,56 @@ def Run_Timeseries(Osc_Param, Network_Param, tstop, dt):
     t = np.arange(0, tstop, dt)
 
     # Some Infos
-    print("\033[34;1m" + "Simulation of coupled Oscillators")
-    print("\033[34;1m" + "-> Stop Time {}s using step size {}s ({} points)".format(basic.EngNot(tstop),
-                                                                                   basic.EngNot(dt),
-                                                                                   basic.EngNot(len(t))) )
+    if PrintOutput:
+        print("\033[34;1m" + "Simulation of coupled Oscillators")
+        print("\033[34;1m" + "-> Stop Time {}s using step size {}s ({} points)".format(basic.EngNot(tstop),
+                                                                                       basic.EngNot(dt),
+                                                                                       basic.EngNot(len(t))) )
     start_time = time.time()
+
+    #############################################################################
     
     # Initialize solution arrays
     for osc_index in range(len(Osc_Param)):
         
         oscdata = {}
-        oscdata["frequency"] = np.zeros(len(t))     # oscillator frequency
-        oscdata["theta"]     = np.zeros(len(t))     # oscillator instantaneous phase
+        oscdata["angular_frequency"] = np.zeros(len(t))     # oscillator frequency
+        oscdata["frequency"] = np.zeros(len(t))             # oscillator frequency
+        oscdata["theta"]     = np.zeros(len(t))             # oscillator instantaneous phase
         
         # init values
+        oscdata["angular_frequency"][0] = Osc_Param[osc_index]["omega0"]
         oscdata["frequency"][0] = Osc_Param[osc_index]["omega0"]/(2*np.pi)
         oscdata["theta"][0] = Osc_Param[osc_index]["theta0"]
-        
-        print("\033[34;1m" + "-> Oscillator {}: initial frequency {}Hz and initial phase {}\033[0m".format(osc_index+1,
+ 
+        results.append(oscdata)       
+ 
+        # Info - Node Settings
+        s_nodes = "\033[34;1m"
+        s_nodes += "-> Oscillator {}: initial frequency {}Hz ({}radHz) and initial phase {}".format(osc_index+1,
                                                                                                basic.EngNot(Osc_Param[osc_index]["omega0"]/(2*np.pi)),
-                                                                                               basic.EngNot(Osc_Param[osc_index]["theta0"]) ))
+                                                                                               basic.EngNot(Osc_Param[osc_index]["omega0"]),
+                                                                                               basic.EngNot(Osc_Param[osc_index]["theta0"]) )
+        s_nodes += "\033[0m"
         
-        results.append(oscdata)
+
+        
+        # This Oscillator is coupled to...
+        s_coupling ="\033[34;1m" + "   Couplings: "
+        
+        # Coupled Oscillators to this Index
+        for cplg_index in np.transpose( np.nonzero( Network_Param["cplg_gain"][osc_index, ::] ) ):
+            s_coupling += "{} <- {}s -> {} ".format(osc_index+1,
+                                                  basic.EngNot(Network_Param["cplg_delay"][osc_index, cplg_index[1]]),
+                                                  cplg_index[1]+1)
+        
+        s_coupling += "\033[0m"
+
+        if PrintOutput:
+            print( s_nodes )        
+            print( s_coupling )
+
+    #############################################################################
         
     # Progressbar
     basic.printProgressBar(0, len(t), length = 50)
@@ -1303,10 +1141,43 @@ def Run_Timeseries(Osc_Param, Network_Param, tstop, dt):
         # Update Progress Bar
         basic.printProgressBar(i + 1, len(t), length = 50) 
         
-        
+ 
     # Some Infos
     elapsed_time = time.time() - start_time
-    print("\033[0m" + "Calculations \033[32;1m" + "done" + "\033[0m! (Time needed: " + str(np.round(elapsed_time,3)) + "sec.)")
+    if PrintOutput:
+        print("\033[0m" + "Calculations \033[32;1m" + "done" + "\033[0m! (Time needed: " + str(np.round(elapsed_time,3)) + "sec.)")
+        
+    #############################################################################
 
-    return [t, results]
+    postprocess = []
+
+    # Post Process
+    for osc_index in range(len(Osc_Param)):
+        
+        # Iterate each coupled Oscillator
+        for cplg_index in np.transpose( np.nonzero( Network_Param["cplg_gain"][osc_index, ::] ) ):  
+            
+            
+            cplg_result = {}
+            cplg_result["cplg"] = [osc_index+1, cplg_index[1]+1]
+            
+            # Extract Delta Phase
+            cplg_result["delta_theta"] = results[osc_index]["theta"] - results[cplg_index[1]]["theta"]
+            cplg_result["delta_frequency"] = results[osc_index]["frequency"] - results[cplg_index[1]]["frequency"]
+            
+            # Find settling time
+            cplg_result["settlingtime_phase"] = t[ SteadyStateDetection(cplg_result["delta_theta"], threshold_steadystate_phase) ]
+            cplg_result["settlingtime_frequency"] = t[ SteadyStateDetection(cplg_result["delta_frequency"], threshold_steadystate_freq) ]
+            
+            cplg_result["settlingtime"] = np.mean([cplg_result["settlingtime_phase"], cplg_result["settlingtime_frequency"]])
+            
+            # initial phase difference at active coupling
+            cplg_result["initial_delta_theta"] = cplg_result["delta_theta"][ int(Network_Param["cplg_delay"][osc_index, cplg_index[1]]/dt) ]
+            
+            postprocess.append(cplg_result)
+        
+    if PrintOutput:
+        print("\033[0m" + "Post Processing \033[32;1m" + "done" + "\033[0m!")
+              
+    return [t, results, postprocess]
     
