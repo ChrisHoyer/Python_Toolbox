@@ -1064,7 +1064,7 @@ def Run_Timeseries(Osc_Param, Network_Param, tstop, dt,
         Index_SteadyState = FindTrue( Delta_Threshold )
         
         # Check if negative
-        if Index_SteadyState < 0: Index_SteadyState = 0    
+        if Index_SteadyState < 0: Index_SteadyState = -1    
         
         # Return Index
         return Index_SteadyState        
@@ -1168,6 +1168,10 @@ def Run_Timeseries(Osc_Param, Network_Param, tstop, dt,
             # Find settling time
             cplg_result["settlingtime_phase"] = t[ SteadyStateDetection(cplg_result["delta_theta"], threshold_steadystate_phase) ]
             cplg_result["settlingtime_frequency"] = t[ SteadyStateDetection(cplg_result["delta_frequency"], threshold_steadystate_freq) ]
+            
+            # Check if settling time is smaller than time delay
+            if( cplg_result["settlingtime_phase"] >= t[-2]):
+                print ("\033[1;31mWARNING - Coupling Path: {}<->{} not settled!\033[0m".format(osc_index+1, cplg_index[1]+1))
             
             cplg_result["settlingtime"] = np.mean([cplg_result["settlingtime_phase"], cplg_result["settlingtime_frequency"]])
             
