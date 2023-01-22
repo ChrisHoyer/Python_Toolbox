@@ -1054,7 +1054,7 @@ def Run_Timeseries(Osc_Param, Network_Param, tstop, dt,
                 if val: count += 1
                 else: count = 0
                     
-                if count == threshold: return i - threshold
+                if count == threshold: return i - threshold + 1
                 
             return -1
         
