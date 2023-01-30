@@ -323,7 +323,8 @@ def Net_2Mutually(phase_delay, omega0_div, G_CPLG, variable,
     return return_var
 
 # Iterative Task during Simulation
-def Perform_Timeseries_Simulation(t_index, dt, results, Osc_Param, Network_Param):
+def Perform_Timeseries_Simulation(t_index, dt, results, Osc_Param, Network_Param,
+                                  CheckEnableCplg=False):
     
     #############################################################################    
     """
@@ -335,6 +336,7 @@ def Perform_Timeseries_Simulation(t_index, dt, results, Osc_Param, Network_Param
     results                 result vector storing transient results
     Osc_Param               dictionary containing oscillator parameters
     Network_Param           dictionary containing network parameters
+    CheckEnableCplg         bool to check if coupling can be enabled
 
     """
     #############################################################################
@@ -376,6 +378,12 @@ def Perform_Timeseries_Simulation(t_index, dt, results, Osc_Param, Network_Param
             phase_own = results[osc_index]["theta"][ t_index - 1 ]
             phase_cplg = cplg_theta[ t_index - 1 - int(cplg_delay/dt) ]
             
+            
+            # check if coupling can be established, otherwise the input is zero
+            if CheckEnableCplg and t_index <= int(cplg_delay/dt):
+                    phase_cplg = 0
+            
+            # calculate coupling input
             cplg_value += cplg_gain * PD_Fct(phase_cplg, phase_own, Osc_Param[osc_index]["pd_fct"])
             
 
@@ -968,9 +976,9 @@ def Calc_nonlinear(time_start=0, time_end=10e-9, time_points=1e3,
   
 # Simulation of coupled oscillators
 def Run_Timeseries(Osc_Param, Network_Param, tstop, dt,
-                   threshold_steadystate_phase=1e-3,
-                   threshold_steadystate_freq=1e-4,
-                   PrintOutput=True):
+                   threshold_steadystate_phase=1e-4,
+                   threshold_steadystate_freq=5e-5,
+                   PrintOutput=True, InitialHistory=False, EnableCouplingAtDelay=False):
     
     #############################################################################    
     """
@@ -995,7 +1003,10 @@ def Run_Timeseries(Osc_Param, Network_Param, tstop, dt,
                             
                             
     threshold_steadystate_phase         threshold for detection of steady state of the phase
-    threshold_steadystate_freq          threshold for detection of steady state of the frequency                            
+    threshold_steadystate_freq          threshold for detection of steady state of the frequency 
+
+    InitialHistory                      use initial value for whole history                          
+    EnableCouplingAtDelay               disable coupling until delay is reaced
                             
     example with 3 nodes in chain
 
@@ -1044,7 +1055,7 @@ def Run_Timeseries(Osc_Param, Network_Param, tstop, dt,
     #############################################################################
 
     # Steady State detector
-    def SteadyStateDetection(dataset, threshold_steadystate):
+    def SteadyStateDetection(dataset, start_index, threshold_steadystate):
  
         # Find number of threshold times true in a row
         def FindTrue(arr, threshold = 25):
@@ -1059,7 +1070,7 @@ def Run_Timeseries(Osc_Param, Network_Param, tstop, dt,
             return -1
         
         Delta_Norm = dataset - dataset[-1]
-        Delta_Threshold = ( np.abs( np.diff(Delta_Norm) ) <  threshold_steadystate )[:-1]
+        Delta_Threshold = ( np.abs( np.diff(Delta_Norm[start_index::]) ) <  threshold_steadystate )[:-1]
         
         Index_SteadyState = FindTrue( Delta_Threshold )
         
@@ -1095,11 +1106,18 @@ def Run_Timeseries(Osc_Param, Network_Param, tstop, dt,
         oscdata["frequency"] = np.zeros(len(t))             # oscillator frequency
         oscdata["theta"]     = np.zeros(len(t))             # oscillator instantaneous phase
         
-        # init values
-        oscdata["angular_frequency"][0] = Osc_Param[osc_index]["omega0"]
-        oscdata["frequency"][0] = Osc_Param[osc_index]["omega0"]/(2*np.pi)
-        oscdata["theta"][0] = Osc_Param[osc_index]["theta0"]
- 
+        # init values for time 0
+        if not(InitialHistory):
+            oscdata["angular_frequency"][0] = Osc_Param[osc_index]["omega0"]
+            oscdata["frequency"][0] = Osc_Param[osc_index]["omega0"]/(2*np.pi)
+            oscdata["theta"][0] = Osc_Param[osc_index]["theta0"]
+            
+        # intial values for all history
+        else:
+            oscdata["angular_frequency"] = np.ones(len(t))* Osc_Param[osc_index]["omega0"]
+            oscdata["frequency"] = np.ones(len(t))* Osc_Param[osc_index]["omega0"]/(2*np.pi)
+            oscdata["theta"] = np.ones(len(t))* Osc_Param[osc_index]["theta0"]
+            
         results.append(oscdata)       
  
         # Info - Node Settings
@@ -1136,7 +1154,7 @@ def Run_Timeseries(Osc_Param, Network_Param, tstop, dt,
     for i in range(1, len(t)):
         
         # Calulation
-        Perform_Timeseries_Simulation(i, dt, results, Osc_Param, Network_Param)
+        Perform_Timeseries_Simulation(i, dt, results, Osc_Param, Network_Param, CheckEnableCplg=EnableCouplingAtDelay)
         
         # Update Progress Bar
         basic.printProgressBar(i + 1, len(t), length = 50) 
@@ -1160,23 +1178,33 @@ def Run_Timeseries(Osc_Param, Network_Param, tstop, dt,
             
             cplg_result = {}
             cplg_result["cplg"] = [osc_index+1, cplg_index[1]+1]
+            cplg_result["success"] = True
             
             # Extract Delta Phase
             cplg_result["delta_theta"] = results[osc_index]["theta"] - results[cplg_index[1]]["theta"]
             cplg_result["delta_frequency"] = results[osc_index]["frequency"] - results[cplg_index[1]]["frequency"]
             
+            # index of coupling start
+            cplg_start = int(Network_Param["cplg_delay"][osc_index, cplg_index[1]]/dt)
+            
             # Find settling time
-            cplg_result["settlingtime_phase"] = t[ SteadyStateDetection(cplg_result["delta_theta"], threshold_steadystate_phase) ]
-            cplg_result["settlingtime_frequency"] = t[ SteadyStateDetection(cplg_result["delta_frequency"], threshold_steadystate_freq) ]
+            cplg_result["settlingtime_phase"] = t[ SteadyStateDetection(cplg_result["delta_theta"], cplg_start, threshold_steadystate_phase) ]
+            cplg_result["settlingtime_frequency"] = t[ SteadyStateDetection(cplg_result["delta_frequency"], cplg_start, threshold_steadystate_freq) ]
             
             # Check if settling time is smaller than time delay
             if( cplg_result["settlingtime_phase"] >= t[-2]):
                 print ("\033[1;31mWARNING - Coupling Path: {}<->{} not settled!\033[0m".format(osc_index+1, cplg_index[1]+1))
-            
+                cplg_result["success"] = False
+
+            # Check if settling time is before coupling stated
+            if( cplg_result["settlingtime_phase"] <= t[ cplg_start ]):
+                print ("\033[1;31mWARNING - Coupling Path: {}<->{} settled before not activated!\033[0m".format(osc_index+1, cplg_index[1]+1))
+                cplg_result["success"] = False
+                
             cplg_result["settlingtime"] = np.mean([cplg_result["settlingtime_phase"], cplg_result["settlingtime_frequency"]])
             
             # initial phase difference at active coupling
-            cplg_result["initial_delta_theta"] = cplg_result["delta_theta"][ int(Network_Param["cplg_delay"][osc_index, cplg_index[1]]/dt) ]
+            cplg_result["initial_delta_theta"] = cplg_result["delta_theta"][ cplg_start ]
             
             postprocess.append(cplg_result)
         
