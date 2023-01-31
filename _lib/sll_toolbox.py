@@ -341,30 +341,78 @@ def Perform_Timeseries_Simulation(t_index, dt, results, Osc_Param, Network_Param
     """
     #############################################################################
     
-    def PD_Fct(phase1, phase2, pd_fct):
+    def PD_Fct(phase1, phase2, osc_index):
         
         # phase error
         phase_error = phase1 - phase2
         
-        if pd_fct.upper() == "XOR":
-            return sp.signal.sawtooth(phase_error, width=0.5)
+        # PD Gain
+        pd_gain = Osc_Param[osc_index]["pd_amplitude"]
+        
+        if Osc_Param[osc_index]["pd_fct"].upper() == "XOR":
+            return pd_gain * sp.signal.sawtooth(phase_error, width=0.5)
             
-        if pd_fct.upper() == "SIN":
-            return np.sin(phase_error)
+        if Osc_Param[osc_index]["pd_fct"].upper() == "SIN":
+            return pd_gain * np.sin(phase_error)
            
         else:
-            return np.sin(phase_error)
-
+            return pd_gain * np.sin(phase_error)
 
     #############################################################################
     
-    # Calculus for each oscillator
-    for osc_index in range(len(results)):
+    def LF_Fct(V_out, V_in, osc_index):
+      
+        # first order RC
+        if Osc_Param[osc_index]["lf_fct"].upper() == "1_RC":
+            
+            # PD Gain and time constant
+            lf_gain = Osc_Param[osc_index]["lf_gain"]
+            lf_tau = Osc_Param[osc_index]["lf_tau"]
+            
+            # calculate next step
+            dVC1 = 1/(lf_tau[0]) * (V_in[t_index-1] - V_out[t_index-1])
+            Vc1 = V_out[t_index-1] + dt * dVC1
+            
+            V_out[t_index] = lf_gain * Vc1
+                      
+            return V_out
         
-        # calculate cross-coupling component
-        cplg_value = 0
+        # second order RC
+        if Osc_Param[osc_index]["lf_fct"].upper() == "2_RC":
+            
+            # additional parameters needed for second order
+            if t_index == 1:
+                results[osc_index]["lf_2nd"] = np.zeros(len(V_out))
+            
+            # PD Gain and time constant
+            lf_gain = Osc_Param[osc_index]["lf_gain"]
+            lf_tau = Osc_Param[osc_index]["lf_tau"]
+            
+            # calculate first filter
+            dVC1 = 1/(lf_tau[0]) * (V_in[t_index-1] - results[osc_index]["lf_2nd"][t_index-1])
+            results[osc_index]["lf_2nd"][t_index] = results[osc_index]["lf_2nd"][t_index-1] + dt * dVC1
+
+            # calculate second filter
+            dVC2 = 1/(lf_tau[1]) * (results[osc_index]["lf_2nd"][t_index] - V_out[t_index-1])
+            Vc2 = V_out[t_index-1] + dt * dVC2
+            
+            V_out[t_index] = lf_gain * Vc2
+                      
+            return V_out        
         
-        # iterate each coupled node
+        
+        # no filter Vout = Vin
+        else:
+            return V_in
+
+    #############################################################################
+    
+    def PD_Adder(osc_index):
+        
+        # calculate adder voltage
+        v_add = 0
+        
+        # iterate each coupled node, do the PD and adding
         for cplg_index in range( np.size(Network_Param["cplg_gain"][osc_index, ::]) ):
             
             # Get coupling gain and delay
@@ -384,18 +432,29 @@ def Perform_Timeseries_Simulation(t_index, dt, results, Osc_Param, Network_Param
                     phase_cplg = 0
             
             # calculate coupling input
-            cplg_value += cplg_gain * PD_Fct(phase_cplg, phase_own, Osc_Param[osc_index]["pd_fct"])
+            v_add += cplg_gain * PD_Fct(phase_cplg, phase_own, osc_index)
             
+        return v_add
+    
+    #############################################################################
+    
+    # Calculus for each oscillator
+    for osc_index in range(len(results)):
+          
+        # adder voltage
+        results[osc_index]["vadd"][t_index] = PD_Adder(osc_index)
 
-        # calculate oscillator component
-        osc_value = Osc_Param[osc_index]["omega0"] + Osc_Param[osc_index]["node_gain"] * cplg_value
+        # calculate tuning voltage using loop filter
+        results[osc_index]["vtune"] = LF_Fct( results[osc_index]["vtune"], results[osc_index]["vadd"], osc_index)
+        
+        # integration by the oscillator's 1/s
+        osc_value = Osc_Param[osc_index]["omega0"] + Osc_Param[osc_index]["K_vco"] * results[osc_index]["vtune"][t_index]
         
         # calulate instantaneous phase
         results[osc_index]["theta"][t_index] = results[osc_index]["theta"][t_index -1] + dt * osc_value
         
         # calculate frequency
         results[osc_index]["angular_frequency"][t_index] = (results[osc_index]["theta"][t_index] - results[osc_index]["theta"][t_index - 1])/dt
-        results[osc_index]["frequency"][t_index] =  results[osc_index]["angular_frequency"][t_index]/(2*np.pi)
         
     
     # return results    
@@ -978,7 +1037,7 @@ def Calc_nonlinear(time_start=0, time_end=10e-9, time_points=1e3,
 def Run_Timeseries(Osc_Param, Network_Param, tstop, dt,
                    threshold_steadystate_phase=1e-4,
                    threshold_steadystate_freq=5e-5,
-                   PrintOutput=True, InitialHistory=False, EnableCouplingAtDelay=False):
+                   PrintOutput=True, EnableCouplingAtDelay=False):
     
     #############################################################################    
     """
@@ -991,10 +1050,14 @@ def Run_Timeseries(Osc_Param, Network_Param, tstop, dt,
     
     Osc_Param               array containing oscillator parameters as dict
     
-                            Osc_Param[<osc_index>]["omega0"]
-                            Osc_Param[<osc_index>]["theta0"]
-                            Osc_Param[<osc_index>]["node_gain"]
-                            Osc_Param[<osc_index>]["pd_fct"]              
+                            Osc_Param[<osc_index>]["omega0"]		# natural frequency
+                            Osc_Param[<osc_index>]["theta0"]		# initial phase
+                            Osc_Param[<osc_index>]["K_vco"]			# Sensitivity of the VCO
+							Osc_Param[<osc_index>]["pd_amplitude"]	# Amplitude of PD output
+							Osc_Param[<osc_index>]["pd_fct"]		# PD function: XOR or SIN
+							Osc_Param[<osc_index>]["lf_fct"]		# LF function: 1_RC
+                            Osc_Param[<osc_index>]["lf_gain"]		# LF gain (only of lf_fct is defined)              
+                            Osc_Param[<osc_index>]["lf_tau"]		# LF time constants (only of lf_fct is defined)   
                             
     Network_Param           dictionary containing network parameters
 
@@ -1004,15 +1067,16 @@ def Run_Timeseries(Osc_Param, Network_Param, tstop, dt,
                             
     threshold_steadystate_phase         threshold for detection of steady state of the phase
     threshold_steadystate_freq          threshold for detection of steady state of the frequency 
-
-    InitialHistory                      use initial value for whole history                          
-    EnableCouplingAtDelay               disable coupling until delay is reaced
+                      
+    EnableCouplingAtDelay               disable coupling until delay is reached
                             
     example with 3 nodes in chain
 
 
             Omega0_Net = 2 * np.pi * 23.5e9 / 512
-            Node_Gain = (1.6/2 * 1 * 2*np.pi*757.47e6)/512
+            Kpd = 1.6/2
+            lf_tau = 220*680e-12
+            Kvco = (2*np.pi*757.47e6)/512
             
             delay1 = 20e-9
             delay2 = 20e-9
@@ -1022,20 +1086,32 @@ def Run_Timeseries(Osc_Param, Network_Param, tstop, dt,
             # oscillator A
             Osc_Param.append( {"omega0": Omega0_Net,
                                "theta0": 0,
-                               "node_gain": Node_Gain,
-                               "pd_fct": "XOR"} )
+							   "pd_amplitude": Kpd,
+							   "pd_fct": "SIN",
+							   "K_vco": Kvco,
+							   "lf_gain":1,
+							   "lf_fct": "RC_1",
+							   "lf_tau": lf_tau } )
             
             # oscillator B
             Osc_Param.append( {"omega0": Omega0_Net,
                                "theta0": 1.1*np.pi,
-                               "node_gain": Node_Gain,
-                               "pd_fct": "XOR"} )
+							   "pd_amplitude": Kpd,
+							   "pd_fct": "SIN",
+							   "K_vco": Kvco,
+							   "lf_gain":1,
+							   "lf_fct": "RC_1",
+							   "lf_tau": lf_tau } )
             
             # oscillator C
             Osc_Param.append( {"omega0": Omega0_Net,
                                "theta0": 0.9*np.pi,
-                               "node_gain": Node_Gain,
-                               "pd_fct": "XOR"} )
+							   "pd_amplitude": Kpd,
+							   "pd_fct": "SIN",
+							   "K_vco": Kvco,
+							   "lf_gain":1,
+							   "lf_fct": "RC_1",
+							   "lf_tau": lf_tau } )
             
             # Network Topology
             Network_Param = {
@@ -1049,8 +1125,7 @@ def Run_Timeseries(Osc_Param, Network_Param, tstop, dt,
                              }
             
             
-            [time, results] = sll.Run_Timeseries(Osc_Param,Network_Param, 2e-6, 1e-9)                            
-
+            [time, results, info] = sll.Run_Timeseries(Osc_Param,Network_Param, 2e-6, 1e-9) 
     """
     #############################################################################
 
@@ -1069,7 +1144,7 @@ def Run_Timeseries(Osc_Param, Network_Param, tstop, dt,
                 
             return -1
         
-        Delta_Norm = dataset - dataset[-1]
+        Delta_Norm = (dataset - dataset[-1])
         Delta_Threshold = ( np.abs( np.diff(Delta_Norm[start_index::]) ) <  threshold_steadystate )[:-1]
         
         Index_SteadyState = FindTrue( Delta_Threshold )
@@ -1090,7 +1165,7 @@ def Run_Timeseries(Osc_Param, Network_Param, tstop, dt,
 
     # Some Infos
     if PrintOutput:
-        print("\033[34;1m" + "Simulation of coupled Oscillators")
+        print("\033[34;1m" + "Time Series Simulation of coupled Oscillators")
         print("\033[34;1m" + "-> Stop Time {}s using step size {}s ({} points)".format(basic.EngNot(tstop),
                                                                                        basic.EngNot(dt),
                                                                                        basic.EngNot(len(t))) )
@@ -1102,30 +1177,28 @@ def Run_Timeseries(Osc_Param, Network_Param, tstop, dt,
     for osc_index in range(len(Osc_Param)):
         
         oscdata = {}
-        oscdata["angular_frequency"] = np.zeros(len(t))     # oscillator frequency
-        oscdata["frequency"] = np.zeros(len(t))             # oscillator frequency
-        oscdata["theta"]     = np.zeros(len(t))             # oscillator instantaneous phase
         
+        # node voltages / values
+        oscdata["vadd"]             = np.zeros(len(t))      # adder voltage
+        oscdata["vtune"]            = np.zeros(len(t))      # tuning voltage
+        oscdata["theta"]             = np.zeros(len(t))     # oscillator instantaneous phase
+        oscdata["angular_frequency"] = np.zeros(len(t))     # oscillator frequency
+                      
+
         # init values for time 0
-        if not(InitialHistory):
-            oscdata["angular_frequency"][0] = Osc_Param[osc_index]["omega0"]
-            oscdata["frequency"][0] = Osc_Param[osc_index]["omega0"]/(2*np.pi)
-            oscdata["theta"][0] = Osc_Param[osc_index]["theta0"]
-            
-        # intial values for all history
-        else:
-            oscdata["angular_frequency"] = np.ones(len(t))* Osc_Param[osc_index]["omega0"]
-            oscdata["frequency"] = np.ones(len(t))* Osc_Param[osc_index]["omega0"]/(2*np.pi)
-            oscdata["theta"] = np.ones(len(t))* Osc_Param[osc_index]["theta0"]
+        oscdata["angular_frequency"][0] = Osc_Param[osc_index]["omega0"]
+        oscdata["theta"][0] = Osc_Param[osc_index]["theta0"]
             
         results.append(oscdata)       
  
+    
+ 
         # Info - Node Settings
         s_nodes = "\033[34;1m"
-        s_nodes += "-> Oscillator {}: initial frequency {}Hz ({}radHz) and initial phase {}".format(osc_index+1,
-                                                                                               basic.EngNot(Osc_Param[osc_index]["omega0"]/(2*np.pi)),
-                                                                                               basic.EngNot(Osc_Param[osc_index]["omega0"]),
-                                                                                               basic.EngNot(Osc_Param[osc_index]["theta0"]) )
+        s_nodes += "-> Oscillator {}: natural frequency {}Hz ({}radHz) and initial phase {}rad".format(osc_index+1,
+                                                                                                       basic.EngNot(Osc_Param[osc_index]["omega0"]/(2*np.pi)),
+                                                                                                       basic.EngNot(Osc_Param[osc_index]["omega0"]),
+                                                                                                       basic.EngNot(Osc_Param[osc_index]["theta0"]) )
         s_nodes += "\033[0m"
         
 
@@ -1166,50 +1239,84 @@ def Run_Timeseries(Osc_Param, Network_Param, tstop, dt,
         print("\033[0m" + "Calculations \033[32;1m" + "done" + "\033[0m! (Time needed: " + str(np.round(elapsed_time,3)) + "sec.)")
         
     #############################################################################
-
-    postprocess = []
-
-    # Post Process
+    # Post Process each node
     for osc_index in range(len(Osc_Param)):
+        
+        # Post Process Data
+        results[osc_index]["frequency"] =  results[osc_index]["angular_frequency"]/(2*np.pi)
+        results[osc_index]["phase"] =  results[osc_index]["theta"] * 180/np.pi
+        
+        # Info - Node
+        s_nodes = "\033[34;1m"
+        s_nodes += "-> Oscillator {}: final frequency {}Hz".format(osc_index+1, basic.EngNot(results[osc_index]["frequency"][-1], sig_figs=5) )
+        s_nodes += "\033[0m"        
+        
+        if PrintOutput:
+            print( s_nodes )         
+        
+    if PrintOutput:
+        print("\033[0m" + "Post Processing of Node Parameters \033[32;1m" + "done" + "\033[0m!")        
+
+    #############################################################################
+
+    postprocess_coupling = []
+
+    # Post Process Coupling
+    for osc_index in range(len(Osc_Param)):
+        
         
         # Iterate each coupled Oscillator
         for cplg_index in np.transpose( np.nonzero( Network_Param["cplg_gain"][osc_index, ::] ) ):  
-            
             
             cplg_result = {}
             cplg_result["cplg"] = [osc_index+1, cplg_index[1]+1]
             cplg_result["success"] = True
             
-            # Extract Delta Phase
+            # Extract Deltas
             cplg_result["delta_theta"] = results[osc_index]["theta"] - results[cplg_index[1]]["theta"]
+            cplg_result["delta_phase"] =  cplg_result["delta_theta"] * 180/np.pi
             cplg_result["delta_frequency"] = results[osc_index]["frequency"] - results[cplg_index[1]]["frequency"]
             
             # index of coupling start
             cplg_start = int(Network_Param["cplg_delay"][osc_index, cplg_index[1]]/dt)
             
             # Find settling time
-            cplg_result["settlingtime_phase"] = t[ SteadyStateDetection(cplg_result["delta_theta"], cplg_start, threshold_steadystate_phase) ]
+            cplg_result["settlingtime_theta"] = t[ SteadyStateDetection(cplg_result["delta_theta"], cplg_start, threshold_steadystate_phase) ]
             cplg_result["settlingtime_frequency"] = t[ SteadyStateDetection(cplg_result["delta_frequency"], cplg_start, threshold_steadystate_freq) ]
+ 
+            cplg_result["settlingtime"] = np.mean([cplg_result["settlingtime_theta"], cplg_result["settlingtime_frequency"]])
             
             # Check if settling time is smaller than time delay
-            if( cplg_result["settlingtime_phase"] >= t[-2]):
+            if( cplg_result["settlingtime"] >= t[-2]):
                 print ("\033[1;31mWARNING - Coupling Path: {}<->{} not settled!\033[0m".format(osc_index+1, cplg_index[1]+1))
                 cplg_result["success"] = False
 
             # Check if settling time is before coupling stated
-            if( cplg_result["settlingtime_phase"] <= t[ cplg_start ]):
-                print ("\033[1;31mWARNING - Coupling Path: {}<->{} settled before not activated!\033[0m".format(osc_index+1, cplg_index[1]+1))
+            if( cplg_result["settlingtime"] <= t[ cplg_start ]):
+                print ("\033[1;31mWARNING - Coupling Path: {}<->{} settled before activated!\033[0m".format(osc_index+1, cplg_index[1]+1))
                 cplg_result["success"] = False
                 
-            cplg_result["settlingtime"] = np.mean([cplg_result["settlingtime_phase"], cplg_result["settlingtime_frequency"]])
-            
             # initial phase difference at active coupling
             cplg_result["initial_delta_theta"] = cplg_result["delta_theta"][ cplg_start ]
             
-            postprocess.append(cplg_result)
-        
+            postprocess_coupling.append(cplg_result)
+
+            # Info - Coupling
+            s_coupling = "\033[34;1m"
+            s_coupling += "-> Coupling Path: {}<->{}: final frequency: {}Hz (delta: {}Hz) final phase difference {}rad".format(osc_index+1,
+                                                                                                                               cplg_index[1]+1,
+                                                                                                                               basic.EngNot(results[osc_index]["frequency"][-1], sig_figs=5),
+                                                                                                                               basic.EngNot(cplg_result["delta_frequency"][-1], sig_figs=5),
+                                                                                                                               basic.EngNot(cplg_result["delta_theta"][-1], sig_figs=5))
+            s_coupling += "\033[0m"        
+            
+            if PrintOutput:
+                print( s_coupling )  
+                
     if PrintOutput:
-        print("\033[0m" + "Post Processing \033[32;1m" + "done" + "\033[0m!")
+        print("\033[0m" + "Post Processing of Coupling Parameters \033[32;1m" + "done" + "\033[0m!")
+
+    #############################################################################
               
-    return [t, results, postprocess]
+    return [t, results, postprocess_coupling]
     
