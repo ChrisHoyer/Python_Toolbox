@@ -779,7 +779,7 @@ def Linear_Plot(ax, Plot_list, X_label, Y_label, Legend=True, LegendLoc=0,
                 XAutolim=True, fontsize=7, TicksEng=True, XTicksLabel=None,
                 YTicksLabel=None,legendcol=1,fontsize_label=8, yaxis_pad=0, xaxis_pad=0, 
                 BlackWhite=False, grid = True, minorgridalpha=.3, majorgridalpha=.6,
-                **kwargs):
+                legendalpha=1, **kwargs):
 #############################################################################  
     """
     Prepares a X-Y linear plot
@@ -968,7 +968,7 @@ def Linear_Plot(ax, Plot_list, X_label, Y_label, Legend=True, LegendLoc=0,
 
         if Legend:        
             # plot legend
-            TwinY.legend(all_lines, all_labels, framealpha=1, loc=LegendLoc) 
+            TwinY.legend(all_lines, all_labels, framealpha=legendalpha, loc=LegendLoc) 
         
         # Align Axis
         Align_YXAxis(ax, TwinY, AxisType="X", Method=TwinReuseTicks)
@@ -980,7 +980,7 @@ def Linear_Plot(ax, Plot_list, X_label, Y_label, Legend=True, LegendLoc=0,
         
         if Legend:
             # legend
-            ax.legend(framealpha=1, loc=LegendLoc, fontsize=fontsize, ncol=legendcol)
+            ax.legend(framealpha=legendalpha, loc=LegendLoc, fontsize=fontsize, ncol=legendcol)
             
         if grid:
             
@@ -1439,31 +1439,40 @@ def Box_Plot(ax, XDataset , YDataset, X_label, Y_label, boxwidth=0,
 #############################################################################
 ###         Generate Plot for Frequency Domain / SemilogX
 #############################################################################
-def SemiLogX_Plot(ax, Plot_list, X_label, Y_label, Legend=True, LegendLoc=0, 
-                  TwinX=None, Ylim=None, Xlim=None,  XAutolim=True, fontsize=12,
-                  TicksEng=True, legendcol=1, LegendAlpha=1, BlackWhite=False,
-                  XTicksLabel=None, grid = True, minorgridalpha=0.25,
-                  majorgridalpha=0.5, **kwargs):
+def SemiLogX_Plot(ax, Plot_list, X_label, Y_label, Legend=True, LegendLoc=0,
+                  TwinX=None, TwinY=None, TwinReuseTicks="BOTH",  Ylim=None, Xlim=None,
+                  XAutolim=True, fontsize=7, TicksEng=True, XTicksLabel=None,
+                  YTicksLabel=None,legendcol=1,fontsize_label=8, yaxis_pad=0, xaxis_pad=0, 
+                  BlackWhite=False, grid = True, minorgridalpha=.3, majorgridalpha=.6,
+                  legendalpha=1, **kwargs):
 #############################################################################  
     """
-    Prepares a X Log and Y Linear plot
+    Prepares a X-Y linear plot
 
     paramters              description
     =====================  =============================================:
     ax                      plot axis
-    Plot_list               all X and Y Values also Labels (and arguments)
-    X_label                 X Axis Label and Unit (Engineering Package)
-    Y_label                 Y Axis Label and Unit (Engineering Package)
+    Plot_list               all X and Y Values also Labels (and matplotlib arguments)
+    X_label                 X Axis Label and Unit (option: rescaling factor) (Engineering Package)
+    Y_label                 Y Axis Label and Unit (option: rescaling factor)(Engineering Package)
     Legend                  (option) plot legend
     LegendLoc               (option) legend location
-    TwinX                   (option) primary Y-Axis
-    Ylim                    (option) set Y-Axis limits
-    Xlim                    (option) set X-Axis limits
-    XAutolim                (option) set X-Axis limits automatically
-    fontsize                (option) Fontsize of this Plot 
-    LegendAlpha             (option) Transparency of legend box
+    TwinX                   (option) secondary Y-Axis
+    TwinY                   (option) secondary X-Axis
+    TwinReuseTicks          (option) Methode of regenerating ticks (NONE | AX1 = use AX1 | BEST = fith both)
+    Ylim                    (option) set Y-Axis limits [Y0,Y1]
+    Xlim                    (option) set X-Axis limits [X0,X1]
+    XAutolim                (option) set automatically X Limit (bool)
+    TicksEng                (option) Enable Engineering Ticks
+    XTicksLabel             (option) Label only ever nth tick on X
+    YTicksLabel             (option) Label only ever nth tick on Y
+    fontsize                (option) Fontsize of the legend and ticks
+    fontsize_label          (option) Fontsize of the axis labels
+    legendcol               (option) Legend Columns
+    yaxis_pad               (option) move label to y-axis (padding)
+    xaxis_pad               (option) move label to x-axis (padding)    
     BlackWhite              (option) Use Black and White Preset
-    XTicksLabel             (option) Sets the number of XTicks between min and max
+    grid                    (option) Use grid
     
     return type
        None  (writes directly into axis)
@@ -1534,49 +1543,15 @@ def SemiLogX_Plot(ax, Plot_list, X_label, Y_label, Legend=True, LegendLoc=0,
 
     # =================================== 
     # label
-    ax.set_ylabel(Y_label[0])
-    ax.set_xlabel(X_label[0])
+    ax.set_ylabel(Y_label[0], labelpad=yaxis_pad)
+    ax.set_xlabel(X_label[0], labelpad=xaxis_pad)
     
     # ticks in engineering formatter
     if TicksEng:
         ax.yaxis.set_major_formatter(tck.EngFormatter(unit=Y_label[1]))
         ax.xaxis.set_major_formatter(tck.EngFormatter(unit=X_label[1]))
 
-    # ===================================         
-    # set font sizes
-    for item in ([ax.title, ax.xaxis.label, ax.yaxis.label] +
-             ax.get_xticklabels() + ax.get_yticklabels()):
-        item.set_fontsize(fontsize)
-      
-    # =================================== 
-    # Align both Y Axis to grid
-    if not(TwinX==None) and type(TwinX) == type(ax) and Legend:
-        
-        # Align Axis
-        Align_YXAxis(ax, TwinX, AxisType="Y")
-        
-        # include axis labels in single legend
-        all_lines = TwinX.get_lines() + ax.get_lines()
-        all_labels = [l.get_label() for l in all_lines]
-        
-        # plot legend
-        TwinX.legend(all_lines, all_labels, framealpha=LegendAlpha, loc=LegendLoc)
-        
-    else:
-        
-        if Legend:
-            # legend
-            ax.legend(framealpha=1, loc=LegendLoc, fontsize=fontsize, ncol=legendcol)
-    
-        # Generate new Grid
-        if grid:
-            
-            ax.minorticks_on()
-            ax.grid(which='major', alpha=majorgridalpha, linestyle='-',linewidth=1.2) 
-            ax.grid(which='minor', alpha=minorgridalpha, linestyle=':', linewidth=1)
-      
-    # =================================== 
-    # xlimit Automatic fit?
+    # xlimit
     if XAutolim:
         
         # search min and max x values
@@ -1597,17 +1572,24 @@ def SemiLogX_Plot(ax, Plot_list, X_label, Y_label, Legend=True, LegendLoc=0,
         # set x limit
         ax.set_xlim([x_limit_min,x_limit_max])
 
-     # =================================== 
-     
     # xlimit    
     if Xlim:
-        ax.set_xlim([Xlim[0],Xlim[1]])       
-
-
+        ax.set_xlim([Xlim[0],Xlim[1]])
+        
     # ylimit    
     if Ylim:
         ax.set_ylim([Ylim[0],Ylim[1]])
+
+    # ===================================         
+    # set font sizes (all)
+    for item in ([ax.title, ax.xaxis.label, ax.yaxis.label] +
+             ax.get_xticklabels() + ax.get_yticklabels()):
+        item.set_fontsize(fontsize)
     
+    # set font size label
+    for item in ([ax.xaxis.label, ax.yaxis.label]):
+        item.set_fontsize(fontsize_label)
+
     # =================================== 
     # change XTick Label Position
     if XTicksLabel:
@@ -1616,10 +1598,62 @@ def SemiLogX_Plot(ax, Plot_list, X_label, Y_label, Legend=True, LegendLoc=0,
         for (index,label) in enumerate(ax.xaxis.get_ticklabels()):
             if index % XTicksLabel != 0:
                 label.set_visible(False)
+
+    # change YTick Label Position
+    if YTicksLabel:
         
-  
-    # jump back
-    return
+        # change visibility of each Nth tick
+        for (index,label) in enumerate(ax.yaxis.get_ticklabels()):
+            if index % XTicksLabel != 0:
+                label.set_visible(False)  
+
+    # ===================================    
+    # Legend and grid for two axis
+    if not(TwinX==None) and type(TwinX) == type(ax):
+
+        # include axis labels in single legend
+        all_lines = TwinX.get_lines() + ax.get_lines()
+        all_labels = [l.get_label() for l in all_lines]
+        
+        if Legend:        
+            # plot legend
+            TwinX.legend(all_lines, all_labels, framealpha=1, loc=LegendLoc) 
+        
+        # Align Axis
+        Align_YXAxis(ax, TwinX, AxisType="Y", Method=TwinReuseTicks)
+        
+    elif not(TwinY==None) and type(TwinY) == type(ax):
+ 
+        # include axis labels in single legend
+        all_lines = TwinY.get_lines() + ax.get_lines()
+        all_labels = [l.get_label() for l in all_lines]
+
+        if Legend:        
+            # plot legend
+            TwinY.legend(all_lines, all_labels, framealpha=1, loc=LegendLoc) 
+        
+        # Align Axis
+        Align_YXAxis(ax, TwinY, AxisType="X", Method=TwinReuseTicks)
+
+    # ===================================    
+    # grid and legend
+    else:
+        
+        if Legend:
+            # legend
+            ax.legend(framealpha=1, loc=LegendLoc, fontsize=fontsize, ncol=legendcol)
+            
+        if grid:
+            
+            ax.minorticks_on()
+            ax.grid(which='major', alpha=majorgridalpha, linestyle='-',linewidth=1.2) 
+            ax.grid(which='minor', alpha=minorgridalpha, linestyle=':', linewidth=1)
+            
+            
+
+    #retrn
+    return ax
+
 
 #############################################################################
 ###         Generate Vertical Line with Label
