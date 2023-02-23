@@ -772,14 +772,14 @@ def Linearization_Point(XData, YData, XPoint, Tolerance, num=100,
     return [X_Lin, Y_Lin]
 
 #############################################################################
-###         Generate Linear Plot
+###         Generate Generic Plot ( Check Plot Calls!)
 #############################################################################
-def Linear_Plot(ax, Plot_list, X_label, Y_label, Legend=True, LegendLoc=0,
+def Generic_Plot(func, ax, Plot_list, X_label, Y_label, Legend=True, LegendLoc=0,
                 TwinX=None, TwinY=None, TwinReuseTicks="BOTH",  Ylim=None, Xlim=None,
                 XAutolim=True, fontsize=7, TicksEng=True, XTicksLabel=None,
                 YTicksLabel=None,legendcol=1,fontsize_label=8, yaxis_pad=0, xaxis_pad=0, 
                 BlackWhite=False, grid = True, minorgridalpha=.3, majorgridalpha=.6,
-                legendalpha=1, **kwargs):
+                legendalpha=1, funcReturn=False, **kwargs):
 #############################################################################  
     """
     Prepares a X-Y linear plot
@@ -849,37 +849,12 @@ def Linear_Plot(ax, Plot_list, X_label, Y_label, Legend=True, LegendLoc=0,
         
         plot = Plot_list[index]
         
-        # check dimension of X-Axis if whole trace
-        x_plot = plot[0]
-        
-        # only one marker?
-        if np.size(x_plot) > 1:
-            y_plot = plot[1][0:np.size(x_plot)]
+        # Call Specific Plotting Function
+        if funcReturn:
+            ax, x_plot, returnval = func(ax, plot, Y_label, X_label)
+            
         else:
-            y_plot = plot[1]
-        
-        # emtpy argument list
-        userargs = {}
-                
-        # insert plotting arguments
-        if len(plot) >= 4:
-            args = plot[3].strip().replace(" ", "")
-            userargs = dict(e.split('=') for e in args.split(','))
-            
-        # Check if userargs have only numberic values
-        for userarg in userargs:
-            if userargs[userarg].isdigit():
-                userargs[userarg] = int(userargs[userarg])
-                
-        # rescaling of the y-axis required?
-        if len(Y_label) == 3:
-            y_plot = [y_data*Y_label[2] for y_data in y_plot]
- 
-        # rescaling of the x-axis required?
-        if len(X_label) == 3:
-            x_plot = [x_data*X_label[2] for x_data in x_plot]
-            
-        ax.plot(x_plot, y_plot, label=plot[2], **userargs)
+            ax, x_plot = func(ax, plot, Y_label, X_label)
         
     # label
     ax.set_ylabel(Y_label[0], labelpad=yaxis_pad)
@@ -990,8 +965,188 @@ def Linear_Plot(ax, Plot_list, X_label, Y_label, Legend=True, LegendLoc=0,
             
             
 
-    #retrn
-    return ax
+    #return
+    if funcReturn:
+        return returnval
+    else:
+        return ax
+
+#############################################################################
+###         Generic Plotting Calls
+#############################################################################
+
+# pcolor Plot
+def PseudoColor_Plot(ax, Plot_list, X_label, Y_label, **kwargs):
+
+    def Process_Plot(ax, plot, Y_label, X_label):
+        
+        """
+        Prepares a X-Y linear plot
+    
+        paramters              description
+        =====================  =============================================:
+        ax                      plotting axis
+        
+        plot                    contains plotting array:
+                                [[XData, YData, ZData, "Label"],
+                                 [XData2, YData2, ZData2, "Label", 'linestyle=dashed'],
+                                 [XData2, YData2, ZData2, "Label", 'linestyle=dashed, color=k'], ...]
+                                
+        Y_label                 label y axis
+        
+        X_label                 label x axis
+        """        
+                
+        # check dimension
+        x_plot = plot[0]
+        y_plot = plot[1]
+        z_plot = plot[2]
+        
+        # emtpy argument list
+        userargs = {}
+                
+        # insert plotting arguments
+        if len(plot) >= 4:
+            args = plot[4].strip().replace(" ", "")
+            userargs = dict(e.split('=') for e in args.split(','))
+            
+        # Check if userargs have only numberic values
+        for userarg in userargs:
+            if userargs[userarg].isdigit():
+                userargs[userarg] = int(userargs[userarg])
+                
+        # rescaling of the y-axis required?
+        if len(Y_label) == 3:
+            y_plot = [y_data*Y_label[2] for y_data in y_plot]
+ 
+        # rescaling of the x-axis required?
+        if len(X_label) == 3:
+            x_plot = [x_data*X_label[2] for x_data in x_plot]
+            
+        returnval = ax.pcolor(x_plot, y_plot, z_plot, label=plot[3], **userargs)
+        
+        return ax, x_plot, returnval
+
+    # get collection from Plot
+    return Generic_Plot(Process_Plot, ax, Plot_list, X_label, Y_label, funcReturn=True, **kwargs)
+
+# "Normal" plot
+def Linear_Plot(ax, Plot_list, X_label, Y_label, **kwargs):
+
+    def Process_Plot(ax, plot, Y_label, X_label):
+        
+        """
+        Prepares a X-Y linear plot
+    
+        paramters              description
+        =====================  =============================================:
+        ax                      plotting axis
+        
+        plot                    contains plotting array:
+                                [[XData, YData, "Label"],
+                                 [XData2, YData2, "Label", 'linestyle=dashed'],
+                                 [XData2, YData2, "Label", 'linestyle=dashed, color=k'], ...]
+                                
+        Y_label                 label y axis
+        
+        X_label                 label x axis
+        """       
+                
+        # check dimension of X-Axis if whole trace
+        x_plot = plot[0]
+        
+        # only one marker?
+        if np.size(x_plot) > 1:
+            y_plot = plot[1][0 : np.size(x_plot)]
+        else:
+            y_plot = plot[1]
+        
+        # emtpy argument list
+        userargs = {}
+                
+        # insert plotting arguments
+        if len(plot) >= 4:
+            args = plot[3].strip().replace(" ", "")
+            userargs = dict(e.split('=') for e in args.split(','))
+            
+        # Check if userargs have only numberic values
+        for userarg in userargs:
+            if userargs[userarg].isdigit():
+                userargs[userarg] = int(userargs[userarg])
+                
+        # rescaling of the y-axis required?
+        if len(Y_label) == 3:
+            y_plot = [y_data*Y_label[2] for y_data in y_plot]
+ 
+        # rescaling of the x-axis required?
+        if len(X_label) == 3:
+            x_plot = [x_data*X_label[2] for x_data in x_plot]
+            
+        ax.plot(x_plot, y_plot, label=plot[2], **userargs)
+        
+        return ax, x_plot
+
+    # call function and return
+    return Generic_Plot(Process_Plot, ax, Plot_list, X_label, Y_label, **kwargs)
+
+# SemiLogX Plot
+def SemiLogX_Plot(ax, Plot_list, X_label, Y_label, **kwargs):
+    
+    def Process_Plot(ax, plot, Y_label, X_label):
+        
+        """
+        Prepares a X-Y linear plot
+    
+        paramters              description
+        =====================  =============================================:
+        ax                      plotting axis
+        
+        plot                    contains plotting array:
+                                [[XData, YData, "Label"],
+                                 [XData2, YData2, "Label", 'linestyle=dashed'],
+                                 [XData2, YData2, "Label", 'linestyle=dashed, color=k'], ...]
+                                
+        Y_label                 label y axis
+        
+        X_label                 label x axis
+        """       
+                
+        # check dimension of X-Axis if whole trace
+        x_plot = plot[0]
+        
+        # only one marker?
+        if np.size(x_plot) > 1:
+            y_plot = plot[1][0 : np.size(x_plot)]
+        else:
+            y_plot = plot[1]
+        
+        # emtpy argument list
+        userargs = {}
+                
+        # insert plotting arguments
+        if len(plot) >= 4:
+            args = plot[3].strip().replace(" ", "")
+            userargs = dict(e.split('=') for e in args.split(','))
+            
+        # Check if userargs have only numberic values
+        for userarg in userargs:
+            if userargs[userarg].isdigit():
+                userargs[userarg] = int(userargs[userarg])
+                
+        # rescaling of the y-axis required?
+        if len(Y_label) == 3:
+            y_plot = [y_data*Y_label[2] for y_data in y_plot]
+ 
+        # rescaling of the x-axis required?
+        if len(X_label) == 3:
+            x_plot = [x_data*X_label[2] for x_data in x_plot]
+            
+        ax.semilogx(x_plot, y_plot, label=plot[2], **userargs)
+        
+        return ax, x_plot
+
+    # call function and return
+    return Generic_Plot(Process_Plot, ax, Plot_list, X_label, Y_label, **kwargs)
 
 
 #############################################################################
@@ -1435,224 +1590,6 @@ def Box_Plot(ax, XDataset , YDataset, X_label, Y_label, boxwidth=0,
     
     #retrn
     return [bp, ax]
-
-#############################################################################
-###         Generate Plot for Frequency Domain / SemilogX
-#############################################################################
-def SemiLogX_Plot(ax, Plot_list, X_label, Y_label, Legend=True, LegendLoc=0,
-                  TwinX=None, TwinY=None, TwinReuseTicks="BOTH",  Ylim=None, Xlim=None,
-                  XAutolim=True, fontsize=7, TicksEng=True, XTicksLabel=None,
-                  YTicksLabel=None,legendcol=1,fontsize_label=8, yaxis_pad=0, xaxis_pad=0, 
-                  BlackWhite=False, grid = True, minorgridalpha=.3, majorgridalpha=.6,
-                  legendalpha=1, **kwargs):
-#############################################################################  
-    """
-    Prepares a X-Y linear plot
-
-    paramters              description
-    =====================  =============================================:
-    ax                      plot axis
-    Plot_list               all X and Y Values also Labels (and matplotlib arguments)
-    X_label                 X Axis Label and Unit (option: rescaling factor) (Engineering Package)
-    Y_label                 Y Axis Label and Unit (option: rescaling factor)(Engineering Package)
-    Legend                  (option) plot legend
-    LegendLoc               (option) legend location
-    TwinX                   (option) secondary Y-Axis
-    TwinY                   (option) secondary X-Axis
-    TwinReuseTicks          (option) Methode of regenerating ticks (NONE | AX1 = use AX1 | BEST = fith both)
-    Ylim                    (option) set Y-Axis limits [Y0,Y1]
-    Xlim                    (option) set X-Axis limits [X0,X1]
-    XAutolim                (option) set automatically X Limit (bool)
-    TicksEng                (option) Enable Engineering Ticks
-    XTicksLabel             (option) Label only ever nth tick on X
-    YTicksLabel             (option) Label only ever nth tick on Y
-    fontsize                (option) Fontsize of the legend and ticks
-    fontsize_label          (option) Fontsize of the axis labels
-    legendcol               (option) Legend Columns
-    yaxis_pad               (option) move label to y-axis (padding)
-    xaxis_pad               (option) move label to x-axis (padding)    
-    BlackWhite              (option) Use Black and White Preset
-    grid                    (option) Use grid
-    
-    return type
-       None  (writes directly into axis)
-       
-    Example:
-        
-        import basic_toolbox as basic
-        
-        ...
-        
-        # Prepare
-        Xlabel = [YLabel, 'V']
-        Ylabel = [YLabel, 'V']
-        Plot = [[XData, YData, "Label", 'linestyle=dashed']]    
-        
-        # Generate Plot
-        plt.figure(figsize=(7.5,12))
-        ax1 = plt.subplot(111)
-        basic.Linear_Plot(ax1, Plot, X_label, Ylabel)  
-        plt.show()
-        
-        # Similar to LinearPlot function
-   
-    """    
-
-#############################################################################      
-    # BlackWhite Default Settings
-    if BlackWhite:
-        ax.set_prop_cycle(monochrome)
-        
-    for index in range(len(Plot_list)):
-        
-        # current plot
-        plot = Plot_list[index]
-        
-        # check dimension of X-Axis
-        x_plot = plot[0]
-        
-        # only one marker?
-        if np.size(x_plot) > 1:
-            y_plot = plot[1][0:np.size(x_plot)]
-        else:
-            y_plot = plot[1]
-        
-        # emtpy argument list
-        userargs = {}
-                
-        # insert plotting arguments
-        if len(plot) >= 4:
-            args = plot[3].strip().replace(" ", "")
-            userargs = dict(e.split('=') for e in args.split(','))
-            
-        # Check if userargs have only numberic values
-        for userarg in userargs:
-            if userargs[userarg].isdigit():
-                userargs[userarg] = float(userargs[userarg])
-        
-        # rescaling of the y-axis required?
-        if len(Y_label) == 3:
-            y_plot = [y_data*Y_label[2] for y_data in y_plot]
-         
-        # rescaling of the x-axis required?
-        if len(X_label) == 3:
-            x_plot = [x_data*X_label[2] for x_data in x_plot]
-                
-        # plot
-        ax.semilogx(x_plot, y_plot, label=plot[2], **userargs)     
-
-    # =================================== 
-    # label
-    ax.set_ylabel(Y_label[0], labelpad=yaxis_pad)
-    ax.set_xlabel(X_label[0], labelpad=xaxis_pad)
-    
-    # ticks in engineering formatter
-    if TicksEng:
-        ax.yaxis.set_major_formatter(tck.EngFormatter(unit=Y_label[1]))
-        ax.xaxis.set_major_formatter(tck.EngFormatter(unit=X_label[1]))
-
-    # xlimit
-    if XAutolim:
-        
-        # search min and max x values
-        x_limit_min = np.min(x_plot)
-        x_limit_max = np.max(x_plot)
-                
-        # iterate all traces
-        for trace in ax.get_lines():
-            
-            # find new min value
-            if np.min(trace.get_xdata()) < x_limit_min:
-                x_limit_min = np.min(trace.get_xdata())
- 
-            # find new min value
-            if np.max(trace.get_xdata()) > x_limit_max:
-                x_limit_max = np.max(trace.get_xdata())           
-        
-        # set x limit
-        ax.set_xlim([x_limit_min,x_limit_max])
-
-    # xlimit    
-    if Xlim:
-        ax.set_xlim([Xlim[0],Xlim[1]])
-        
-    # ylimit    
-    if Ylim:
-        ax.set_ylim([Ylim[0],Ylim[1]])
-
-    # ===================================         
-    # set font sizes (all)
-    for item in ([ax.title, ax.xaxis.label, ax.yaxis.label] +
-             ax.get_xticklabels() + ax.get_yticklabels()):
-        item.set_fontsize(fontsize)
-    
-    # set font size label
-    for item in ([ax.xaxis.label, ax.yaxis.label]):
-        item.set_fontsize(fontsize_label)
-
-    # =================================== 
-    # change XTick Label Position
-    if XTicksLabel:
-        
-        # change visibility of each Nth tick
-        for (index,label) in enumerate(ax.xaxis.get_ticklabels()):
-            if index % XTicksLabel != 0:
-                label.set_visible(False)
-
-    # change YTick Label Position
-    if YTicksLabel:
-        
-        # change visibility of each Nth tick
-        for (index,label) in enumerate(ax.yaxis.get_ticklabels()):
-            if index % XTicksLabel != 0:
-                label.set_visible(False)  
-
-    # ===================================    
-    # Legend and grid for two axis
-    if not(TwinX==None) and type(TwinX) == type(ax):
-
-        # include axis labels in single legend
-        all_lines = TwinX.get_lines() + ax.get_lines()
-        all_labels = [l.get_label() for l in all_lines]
-        
-        if Legend:        
-            # plot legend
-            TwinX.legend(all_lines, all_labels, framealpha=1, loc=LegendLoc) 
-        
-        # Align Axis
-        Align_YXAxis(ax, TwinX, AxisType="Y", Method=TwinReuseTicks)
-        
-    elif not(TwinY==None) and type(TwinY) == type(ax):
- 
-        # include axis labels in single legend
-        all_lines = TwinY.get_lines() + ax.get_lines()
-        all_labels = [l.get_label() for l in all_lines]
-
-        if Legend:        
-            # plot legend
-            TwinY.legend(all_lines, all_labels, framealpha=1, loc=LegendLoc) 
-        
-        # Align Axis
-        Align_YXAxis(ax, TwinY, AxisType="X", Method=TwinReuseTicks)
-
-    # ===================================    
-    # grid and legend
-    else:
-        
-        if Legend:
-            # legend
-            ax.legend(framealpha=1, loc=LegendLoc, fontsize=fontsize, ncol=legendcol)
-            
-        if grid:
-            
-            ax.minorticks_on()
-            ax.grid(which='major', alpha=majorgridalpha, linestyle='-',linewidth=1.2) 
-            ax.grid(which='minor', alpha=minorgridalpha, linestyle=':', linewidth=1)
-            
-            
-
-    #retrn
-    return ax
 
 
 #############################################################################
