@@ -844,6 +844,8 @@ def Generic_Plot(func, ax, Plot_list, X_label, Y_label, Legend=True, LegendLoc=0
     if BlackWhite:
         ax.set_prop_cycle(monochrome)
         
+    # for multiple returns
+    returnvals = []
         
     for index in range(len(Plot_list)):
         
@@ -852,6 +854,7 @@ def Generic_Plot(func, ax, Plot_list, X_label, Y_label, Legend=True, LegendLoc=0
         # Call Specific Plotting Function
         if funcReturn:
             ax, x_plot, returnval = func(ax, plot, Y_label, X_label)
+            returnvals.append(returnval)
             
         else:
             ax, x_plot = func(ax, plot, Y_label, X_label)
@@ -970,7 +973,7 @@ def Generic_Plot(func, ax, Plot_list, X_label, Y_label, Legend=True, LegendLoc=0
 
     #return
     if funcReturn:
-        return returnval
+        return returnvals
     else:
         return ax
 
@@ -1188,8 +1191,8 @@ def Box_Plot (ax, Plot_list, X_label, Y_label, **kwargs):
         userargs = {}
                 
         # insert plotting arguments
-        if len(plot) >= 3:
-            args = plot[2].strip().replace(" ", "")
+        if len(plot) >= 4:
+            args = plot[3].strip().replace(" ", "")
             userargs = dict(e.split('=') for e in args.split(','))
             
         # Check if userargs have only numberic values
@@ -1231,19 +1234,26 @@ def Box_Plot (ax, Plot_list, X_label, Y_label, **kwargs):
             # remove "color" from list
             userargs.pop("color")
             
+        # Box Widths
+        if not("widths" in userargs):
             
-        # Legend
-        if "label" in userargs: 
-            
-            print("ERROR - Boxplot - Legend label not supported")
-            userargs.pop("label")
-            
+            # calculate box width with 25% of min distance between X Points
+            userargs["widths"] = np.mean( np.abs(x_plot-np.roll(x_plot,1)) )*0.25
+                        
         returnval = ax.boxplot(y_plot, positions=x_plot, **userargs)
+        
+        # Add Legend to Axis
+        handles, labels = ax.get_legend_handles_labels()
+        handles.append(returnval["boxes"][0])
+        labels.append(plot[2])
+        ax.legend(handles, labels)
         
         return ax, x_plot, returnval
 
+    
     # get collection from Plot
-    return Generic_Plot(Process_Plot, ax, Plot_list, X_label, Y_label, funcReturn=True, **kwargs)
+    return Generic_Plot(Process_Plot, ax, Plot_list, X_label, Y_label,
+                        funcReturn=True, XAutolim=False, Legend=False, **kwargs)
 
     
 #############################################################################
