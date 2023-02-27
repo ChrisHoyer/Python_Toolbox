@@ -871,17 +871,20 @@ def Generic_Plot(func, ax, Plot_list, X_label, Y_label, Legend=True, LegendLoc=0
         # search min and max x values
         x_limit_min = np.min(x_plot)
         x_limit_max = np.max(x_plot)
-                
+                       
         # iterate all traces
         for trace in ax.get_lines():
             
-            # find new min value
-            if np.min(trace.get_xdata()) < x_limit_min:
-                x_limit_min = np.min(trace.get_xdata())
- 
-            # find new min value
-            if np.max(trace.get_xdata()) > x_limit_max:
-                x_limit_max = np.max(trace.get_xdata())           
+            # Length should be more than 2 points
+            if len(trace.get_xdata()) > 2:
+            
+                # find new min value
+                if np.min(trace.get_xdata()) < x_limit_min:
+                    x_limit_min = np.min(trace.get_xdata())
+     
+                # find new min value
+                if np.max(trace.get_xdata()) > x_limit_max:
+                    x_limit_max = np.max(trace.get_xdata())   
         
         # set x limit
         ax.set_xlim([x_limit_min,x_limit_max])
@@ -1012,8 +1015,16 @@ def PseudoColor_Plot(ax, Plot_list, X_label, Y_label, **kwargs):
             
         # Check if userargs have only numberic values
         for userarg in userargs:
+
+            # check if is int            
             if userargs[userarg].isdigit():
                 userargs[userarg] = int(userargs[userarg])
+                continue
+                
+            # check if is float
+            if userargs[userarg].replace('.','',1).isdigit():
+                userargs[userarg] = float(userargs[userarg])
+                continue
                 
         # rescaling of the y-axis required?
         if len(Y_label) == 3:
@@ -1148,7 +1159,93 @@ def SemiLogX_Plot(ax, Plot_list, X_label, Y_label, **kwargs):
     # call function and return
     return Generic_Plot(Process_Plot, ax, Plot_list, X_label, Y_label, **kwargs)
 
+# Boxplot
+def Box_Plot (ax, Plot_list, X_label, Y_label, **kwargs):
 
+    def Process_Plot(ax, plot, Y_label, X_label):
+        
+        """
+        Prepares a X-Y linear plot
+    
+        paramters              description
+        =====================  =============================================:
+        ax                      plotting axis
+        
+        plot                    contains plotting array:
+                                [[XData, YData],
+                                 [XData2, YData2, 'color=k'], ...]
+                                
+        Y_label                 label y axis
+        
+        X_label                 label x axis
+        """        
+                
+        # check dimension
+        x_plot = plot[0]
+        y_plot = plot[1]
+        
+        # emtpy argument list
+        userargs = {}
+                
+        # insert plotting arguments
+        if len(plot) >= 3:
+            args = plot[2].strip().replace(" ", "")
+            userargs = dict(e.split('=') for e in args.split(','))
+            
+        # Check if userargs have only numberic values
+        for userarg in userargs:
+
+            # check if is int            
+            if userargs[userarg].isdigit():
+                userargs[userarg] = int(userargs[userarg])
+                continue
+                
+            # check if is float
+            if userargs[userarg].replace('.','',1).isdigit():
+                userargs[userarg] = float(userargs[userarg])
+                continue
+            
+                
+        # rescaling of the y-axis required?
+        if len(Y_label) == 3:
+            y_plot = [y_data*Y_label[2] for y_data in y_plot]
+ 
+        # rescaling of the x-axis required?
+        if len(X_label) == 3:
+            x_plot = [x_data*X_label[2] for x_data in x_plot]
+            
+            
+        # Color? -> Some Special Threatment
+        if "color" in userargs:
+            
+            color = userargs["color"]
+                        
+            # patch artist
+            userargs["patch_artist"] = True
+            userargs["boxprops"] = dict(facecolor=color, color=color, alpha=0.75)
+            userargs["capprops"] = dict(color=color)
+            userargs["whiskerprops"] = dict(color=color)
+            userargs["medianprops"] = dict(color='k')
+            userargs["flierprops"] = dict(marker='x', markersize = 4, markeredgecolor=color)
+            
+            # remove "color" from list
+            userargs.pop("color")
+            
+            
+        # Legend
+        if "label" in userargs: 
+            
+            print("ERROR - Boxplot - Legend label not supported")
+            userargs.pop("label")
+            
+        returnval = ax.boxplot(y_plot, positions=x_plot, **userargs)
+        
+        return ax, x_plot, returnval
+
+    # get collection from Plot
+    return Generic_Plot(Process_Plot, ax, Plot_list, X_label, Y_label, funcReturn=True, **kwargs)
+
+    
 #############################################################################
 ###         Generate Plot for Time Domain / Linear
 #############################################################################
@@ -1472,124 +1569,6 @@ def Histogram_Plot(ax, Plot_list, X_label, Y_label, Legend=True, LegendLoc=0,
         
     #retrn
     return ax
-
-#############################################################################
-###         Generate statistic Boxplot
-#############################################################################
-def Box_Plot(ax, XDataset , YDataset, X_label, Y_label, boxwidth=0,
-             Legend="", LegendLoc=0, fontsize_label=8, yaxis_pad=0, xaxis_pad=0,
-             Ylim=None, grid=True, minorgridalpha=0.25,
-             majorgridalpha=0.5, fontsize=7, **kwargs):
-#############################################################################  
-    """
-    Prepares a X-Y linear plot
-
-    paramters              description
-    =====================  =============================================:
-    ax                      plot axis
-    XDataset                all X Datas as vector
-    YDataset                all Y Datas as list
-    X_label                 X Axis Label and Unit (Engineering Package)
-    Y_label                 Y Axis Label and Unit (Engineering Package)
-    Legend                  (option) plot legend
-    LegendLoc               (option) legend location
-    boxwidth                (option) width of box in boxplot
-    Ylim                    (option) set Y-Axis limits
-    grid                    (option) enable grid
-    fontsize                (option) Fontsize of this Plot 
-    fontsize_label          (option) Fontsize of the axis labels
-    yaxis_pad               (option) move label to y-axis (padding)
-    xaxis_pad               (option) move label to x-axis (padding)    
- 
-    return type
-       None  (writes directly into axis)
-      
-    Example:
-        
-        import basic_toolbox as basic
-        
-        ...
-        
-        # Prepare
-        Xlabel = [YLabel, 'V']
-        Ylabel = [YLabel, 'V']
-        Xdata = ...
-        Ydata = ...
-        
-        # Generate Plot
-        plt.figure(figsize=(10,5))
-        ax1 = plt.subplot(111)
-        basic.Linear_Plot(ax1, xdata, ydata, Xlabel, Ylabel)  
-        plt.show()
-   
-    """        
-#############################################################################      
-
-    # save xticks and xlim before
-    xticks_old = ax.get_xticks()
-    
-    # find all  legends
-    legend_handles, legend_labels = ax.get_legend_handles_labels()
-        
-    # rescaling of the y-axis required?
-    if len(Y_label) == 3:
-        for index in range(len(YDataset)):
-            YDataset[index] = [subitem*Y_label[2] for subitem in YDataset[index]]
- 
-    # rescaling of the x-axis required?
-    if len(X_label) == 3:
-        XDataset = [x_data*X_label[2] for x_data in XDataset]
-        
-     # calculate box width with 25% of min distance between X Points 
-    if not boxwidth:
-        boxwidth = np.mean(np.abs(XDataset-np.roll(XDataset,1)))*0.25
-           
-    # create box plot
-    bp = ax.boxplot(YDataset, positions=XDataset, widths=boxwidth, **kwargs)
-      
-    # label
-    ax.set_ylabel(Y_label[0], labelpad=yaxis_pad)
-    ax.yaxis.set_major_formatter(tck.EngFormatter(unit=Y_label[1]))
-    
-    ax.set_xlabel(X_label[0], labelpad=xaxis_pad)
-    ax.xaxis.set_major_formatter(tck.EngFormatter(unit=X_label[1]))
-        
-    # xlimit    
-    if Ylim:
-        ax.set_ylim([Ylim[0],Ylim[1]])
-        
-    if Legend:
-        
-        
-        print(len(legend_handles))
-        
-        legend_handles.append(bp["boxes"][0])
-        legend_labels.append(Legend)
-
-        ax.legend(legend_handles, legend_labels, framealpha=1, loc=LegendLoc, fontsize=fontsize)
-
-    # Generate new Grid
-    if grid:
-        ax.minorticks_on()
-        ax.grid(True, which='major')
-        ax.grid(which='major', alpha=majorgridalpha, linestyle='-',linewidth=1.2) 
-        ax.grid(which='minor', alpha=minorgridalpha, linestyle=':', linewidth=1)
-            
-    else:
-        ax.set_xticks(xticks_old)
-        
-    # set font sizes (all)
-    for item in ([ax.title, ax.xaxis.label, ax.yaxis.label] +
-             ax.get_xticklabels() + ax.get_yticklabels()):
-        item.set_fontsize(fontsize)
-    
-    # set font size label
-    for item in ([ax.xaxis.label, ax.yaxis.label]):
-        item.set_fontsize(fontsize_label)
-        
-    
-    #retrn
-    return [bp, ax]
 
 
 #############################################################################
