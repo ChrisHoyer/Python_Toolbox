@@ -1085,8 +1085,16 @@ def Linear_Plot(ax, Plot_list, X_label, Y_label, **kwargs):
             
         # Check if userargs have only numberic values
         for userarg in userargs:
+            
+            # check if is int            
             if userargs[userarg].isdigit():
                 userargs[userarg] = int(userargs[userarg])
+                continue
+                
+            # check if is float
+            if userargs[userarg].replace('.','',1).isdigit():
+                userargs[userarg] = float(userargs[userarg])
+                continue
                 
         # rescaling of the y-axis required?
         if len(Y_label) == 3:
@@ -1144,8 +1152,16 @@ def SemiLogX_Plot(ax, Plot_list, X_label, Y_label, **kwargs):
             
         # Check if userargs have only numberic values
         for userarg in userargs:
+            
+            # check if is int            
             if userargs[userarg].isdigit():
                 userargs[userarg] = int(userargs[userarg])
+                continue
+                
+            # check if is float
+            if userargs[userarg].replace('.','',1).isdigit():
+                userargs[userarg] = float(userargs[userarg])
+                continue
                 
         # rescaling of the y-axis required?
         if len(Y_label) == 3:
