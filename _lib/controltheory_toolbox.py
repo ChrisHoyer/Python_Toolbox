@@ -271,7 +271,7 @@ def BodePlot_FBCTRL(feedforward, feedback, freq, variable="", evaluation="lambdi
 #############################################################################
 #           Generate BodePlot out of symbolic transfer function
 #############################################################################
-def BodePlot(system, freq, evaluation="lambdify"):
+def BodePlot(system, freq, evaluation="lambdify", returncomplex=False):
  
 ############################################################################# 
     """
@@ -297,6 +297,10 @@ def BodePlot(system, freq, evaluation="lambdify"):
         
     # Generate OpenLoop Transfer Function
     system_extract = Extract_Sympy_1Var(system, omega, evaluation=evaluation)
+    
+    if returncomplex:
+        return system_extract
+    
     system_extract = basic.CMPLX2Format(system_extract)
      
     # return plot

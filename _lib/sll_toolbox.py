@@ -337,7 +337,7 @@ def Net_2Mutually(phase_delay, omega0_div, G_CPLG, variable,
 
 # Iterative Task during Simulation
 def Perform_Timeseries_Simulation(t_index, dt, results, Osc_Param, Network_Param,
-                                  CheckEnableCplg=False):
+                                  CheckEnableCplg=False, EnableNoise=False):
     
     #############################################################################    
     """
@@ -464,15 +464,20 @@ def Perform_Timeseries_Simulation(t_index, dt, results, Osc_Param, Network_Param
         osc_value = Osc_Param[osc_index]["omega0"] + Osc_Param[osc_index]["K_vco"] * results[osc_index]["vtune"][t_index]
 
         # Add oscillator noise to the phase
-        if False:
-             osc_value = osc_value + np.random.normal(0, 1e6)   
+        if EnableNoise:
+             osc_value = np.random.normal(osc_value, Osc_Param[osc_index]["vco_noise"])   
+                
+        # divided frequency
+        osc_div_value = osc_value * 1/Osc_Param[osc_index]["div_N"] 
              
         # calulate instantaneous phase
-        results[osc_index]["theta"][t_index] = results[osc_index]["theta"][t_index -1] + dt * osc_value
+        results[osc_index]["theta"][t_index] = results[osc_index]["theta"][t_index -1] + dt * osc_div_value
+        results[osc_index]["theta_vco"][t_index] = results[osc_index]["theta_vco"][t_index -1] + dt * osc_value
         
         # calculate frequency
         results[osc_index]["angular_frequency"][t_index] = (results[osc_index]["theta"][t_index] - results[osc_index]["theta"][t_index - 1])/dt
-        
+        results[osc_index]["angular_frequency_vco"][t_index] = (results[osc_index]["theta_vco"][t_index] - results[osc_index]["theta_vco"][t_index - 1])/dt       
+                
     
     # return results    
     return results
@@ -1073,7 +1078,7 @@ def Calc_nonlinear(time_start=0, time_end=10e-9, time_points=1e3,
 def Run_Timeseries(Osc_Param, Network_Param, tstop, dt,
                    threshold_steadystate_phase=1e-4,
                    threshold_steadystate_freq=5e-5,
-                   PrintOutput=True, EnableCouplingAtDelay=False):
+                   PrintOutput=True, EnableCouplingAtDelay=False, EnableNoise=False):
     
     #############################################################################    
     """
@@ -1105,6 +1110,7 @@ def Run_Timeseries(Osc_Param, Network_Param, tstop, dt,
     threshold_steadystate_freq          threshold for detection of steady state of the frequency 
                       
     EnableCouplingAtDelay               disable coupling until delay is reached
+    EnableNoise                         enable oscillator noise
                             
     example with 3 nodes in chain
 
@@ -1215,26 +1221,32 @@ def Run_Timeseries(Osc_Param, Network_Param, tstop, dt,
         oscdata = {}
         
         # node voltages / values
-        oscdata["vadd"]             = np.zeros(len(t))      # adder voltage
-        oscdata["vtune"]            = np.zeros(len(t))      # tuning voltage
-        oscdata["theta"]             = np.zeros(len(t))     # oscillator instantaneous phase
-        oscdata["angular_frequency"] = np.zeros(len(t))     # oscillator frequency
-                      
+        oscdata["vadd"]                 = np.zeros(len(t))     # adder voltage
+        oscdata["vtune"]                = np.zeros(len(t))     # tuning voltage
+    
+        oscdata["theta"]                = np.zeros(len(t))     # divided oscillator instantaneous phase
+        oscdata["theta_vco"]            = np.zeros(len(t))     # oscillator instantaneous phase    
+        
+        oscdata["angular_frequency"]    = np.zeros(len(t))     # divided oscillator frequency
+        oscdata["angular_frequency_vco"] = np.zeros(len(t))    # oscillator frequency                      
 
         # init values for time 0
-        oscdata["angular_frequency"][0] = Osc_Param[osc_index]["omega0"]
+        oscdata["angular_frequency"][0] = Osc_Param[osc_index]["omega0"] * 1/Osc_Param[osc_index]["div_N"] 
+        oscdata["angular_frequency_vco"][0] = Osc_Param[osc_index]["omega0"]
+
         oscdata["theta"][0] = Osc_Param[osc_index]["theta0"]
-            
+        oscdata["theta_vco"][0] = Osc_Param[osc_index]["theta0"] 
+           
         results.append(oscdata)       
  
     
  
         # Info - Node Settings
         s_nodes = "\033[34;1m"
-        s_nodes += "-> Oscillator {}: natural frequency {}Hz ({}radHz) and initial phase {}rad".format(osc_index+1,
-                                                                                                       basic.EngNot(Osc_Param[osc_index]["omega0"]/(2*np.pi)),
-                                                                                                       basic.EngNot(Osc_Param[osc_index]["omega0"]),
-                                                                                                       basic.EngNot(Osc_Param[osc_index]["theta0"]) )
+        s_nodes += "-> Oscillator {}: natural VCO frequency {}Hz ({}radHz) and initial phase {}rad".format(osc_index+1,
+                                                                                                           basic.EngNot(Osc_Param[osc_index]["omega0"]/(2*np.pi)),
+                                                                                                           basic.EngNot(Osc_Param[osc_index]["omega0"]),
+                                                                                                           basic.EngNot(Osc_Param[osc_index]["theta0"]) )
         s_nodes += "\033[0m"
         
 
@@ -1263,7 +1275,7 @@ def Run_Timeseries(Osc_Param, Network_Param, tstop, dt,
     for i in range(1, len(t)):
         
         # Calulation
-        Perform_Timeseries_Simulation(i, dt, results, Osc_Param, Network_Param, CheckEnableCplg=EnableCouplingAtDelay)
+        Perform_Timeseries_Simulation(i, dt, results, Osc_Param, Network_Param, CheckEnableCplg=EnableCouplingAtDelay, EnableNoise=EnableNoise)
         
         # Update Progress Bar
         basic.printProgressBar(i + 1, len(t), length = 50) 
@@ -1280,7 +1292,10 @@ def Run_Timeseries(Osc_Param, Network_Param, tstop, dt,
         
         # Post Process Data
         results[osc_index]["frequency"] =  results[osc_index]["angular_frequency"]/(2*np.pi)
-        results[osc_index]["phase"] =  results[osc_index]["theta"] * 180/np.pi
+        results[osc_index]["phase"] =  (results[osc_index]["theta"] * 180/np.pi) % 360
+        
+        results[osc_index]["frequency_vco"] =  results[osc_index]["angular_frequency_vco"]/(2*np.pi)
+        results[osc_index]["phase_vco"] =  (results[osc_index]["theta_vco"] * 180/np.pi) % 360
         
         # Info - Node
         s_nodes = "\033[34;1m"
@@ -1308,10 +1323,15 @@ def Run_Timeseries(Osc_Param, Network_Param, tstop, dt,
             cplg_result["cplg"] = [osc_index+1, cplg_index[1]+1]
             cplg_result["success"] = True
             
-            # Extract Deltas
+            # Extract Deltas Network level
             cplg_result["delta_theta"] = results[osc_index]["theta"] - results[cplg_index[1]]["theta"]
-            cplg_result["delta_phase"] =  cplg_result["delta_theta"] * 180/np.pi
+            cplg_result["delta_phase"] =  (cplg_result["delta_theta"] * 180/np.pi) % 360
             cplg_result["delta_frequency"] = results[osc_index]["frequency"] - results[cplg_index[1]]["frequency"]
+
+            # Extract Deltas VCO level
+            cplg_result["delta_theta_vco"] = results[osc_index]["theta_vco"] - results[cplg_index[1]]["theta_vco"]
+            cplg_result["delta_phase_vco"] =  (cplg_result["delta_theta_vco"] * 180/np.pi) % 360
+            cplg_result["delta_frequency_vco"] = results[osc_index]["frequency_vco"] - results[cplg_index[1]]["frequency_vco"]
             
             # index of coupling start
             cplg_start = int(Network_Param["cplg_delay"][osc_index, cplg_index[1]]/dt)
