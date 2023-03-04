@@ -446,10 +446,14 @@ def Perform_Timeseries_Simulation(t_index, dt, results, Osc_Param, Network_Param
 
         # calculate tuning voltage using loop filter
         results[osc_index]["vtune"] = LF_Fct( results[osc_index]["vtune"], results[osc_index]["vadd"], osc_index)
-        
+                
         # integration by the oscillator's 1/s
         osc_value = Osc_Param[osc_index]["omega0"] + Osc_Param[osc_index]["K_vco"] * results[osc_index]["vtune"][t_index]
-        
+
+        # Add oscillator noise to the phase
+        if False:
+             osc_value = osc_value + np.random.normal(0, 1e6)   
+             
         # calulate instantaneous phase
         results[osc_index]["theta"][t_index] = results[osc_index]["theta"][t_index -1] + dt * osc_value
         
@@ -653,8 +657,7 @@ def Calc_linear(time_start=0, time_end=10e-9, time_points=1e3,
     
     # Print Loop gain
     GLoop = float(s * G_CPLG)
-    print("\033[34;1m" + "-> loop-gain: {}\033[0m".format(basic.EngNot(GLoop) ))
-                                                       
+    print("\033[34;1m" + "-> loop-gain: {}\033[0m".format(basic.EngNot(GLoop) ))                                          
                                                                                                         
     # Mean Phase for Time Delay
     PhaseError = Omega0_Div * Time_Delay
