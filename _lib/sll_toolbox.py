@@ -36,12 +36,13 @@ def Net_2Mutually(phase_delay, omega0_div, G_CPLG, variable,
                   feedback_phase = 0,
                   coupling_function= "triangle",
                   Nyquist_Freq = np.linspace(0,1e6,int(1e5)),
-                  G_CPLG_LF = None,
+                  K_LF = None,
                   Nyquist_Neglect = 10,
                   calc_networkstab = True,
                   nyquist_tolerance = 1e-3, Nyquist_Real = 0.999,
                   stab_tolerance = 1e-14,
-                  debug_return = True, freqinHz = True):
+                  debug_return = True, freqinHz = True, 
+                  Export_OLTF = False):
 #############################################################################    
     """
    Simple Network in Laplace with two bidirectional coupled nodes to calculate
@@ -63,7 +64,7 @@ def Net_2Mutually(phase_delay, omega0_div, G_CPLG, variable,
     Nyquist_Freq            (optionally) Span where Nyquist Stability is anaylized
     Nyquist_Neglect         (optionally) Neglect first Values for Analysis
     calc_networkstab        (optionally) Calculate Network Stability via Nyquist
-    G_CPLG_LF               (optionally) G_CPLG but for Network  with LF (no steady state)
+    K_LF                    (optionally) LF Transfer function with laplace variable (no steady state)
     nyquist_tolerance       (optionally) tolerance of nyquist solving
     Nyquist_Real            (optionally) nyquist realpart checker
     stab_tolerance          (optionally) tolerance of stability solver
@@ -99,9 +100,9 @@ def Net_2Mutually(phase_delay, omega0_div, G_CPLG, variable,
     else:
         scaletoHz = 1
         
-    # Use G_CPLG also for Network Stability
-    if G_CPLG_LF == None:
-        G_CPLG_LF = G_CPLG
+    # Use K_LF also for Network Stability
+    if K_LF == None:
+        K_LF = 1
     
     # return dictionary
     return_var = {}
@@ -187,7 +188,11 @@ def Net_2Mutually(phase_delay, omega0_div, G_CPLG, variable,
  
     if nonlinear:
         # Transfer Function of Open Loop (derivative) with H_prime and H
-        G_CPLG_TF = G_CPLG(H_PD, H_prime_PD=H_prime_PD, derivative=True) * 1/variable       
+        G_CPLG_TF = G_CPLG(H_PD, H_prime_PD=H_prime_PD, derivative=True) * 1/variable 
+        
+        # Transfer Function of Open Loop including LF
+        G_CPLG_TF_LF = G_CPLG_TF * K_LF
+        
  
 # =========================================================================    
        
@@ -195,9 +200,13 @@ def Net_2Mutually(phase_delay, omega0_div, G_CPLG, variable,
         
         # Transfer Function of Open Loop with H_prime
         G_CPLG_TF = G_CPLG * H_prime_PD
-
+        
+        # Transfer Function of Open Loop with LF with H_prime
+        G_CPLG_TF_LF = G_CPLG_TF * K_LF
+        
+    
 # =========================================================================    
-         
+
     # Closed Loop Transfer Function of a Single PLL
     G_CPLG_CL = G_CPLG_TF / (1 + G_CPLG_TF)
     G_CPLG_CL = sympy.simplify(G_CPLG_CL)
@@ -252,6 +261,13 @@ def Net_2Mutually(phase_delay, omega0_div, G_CPLG, variable,
     return_var["Network_Freq_Stable"] = OmegaNet*scaletoHz if (poles < 0.0) else float("NaN")        
     return_var["Network_Freq_UnStable"] = OmegaNet*scaletoHz if (poles >= 0.0) else float("NaN") 
 
+#############################################################################   
+#           Calculate Loop Bandwidth
+############################################################################# 
+       
+    if Export_OLTF:
+                
+        return_var["OpenLoopTF"] = G_CPLG_TF_LF
     
 #############################################################################   
 #           Calculate Network Stability
@@ -271,10 +287,7 @@ def Net_2Mutually(phase_delay, omega0_div, G_CPLG, variable,
         
         # Laplace Delay block for calculacted Delay
         exp_delay = sympy.exp(-time_delay*variable) 
-        
-        # Transfer Function of Open Loop with LF with H_prime
-        G_CPLG_TF_LF = G_CPLG_LF * H_prime_PD
-    
+            
         # Closed Loop Transfer Function of a Single PLL with LF
         G_CPLG_CL_LF = G_CPLG_TF_LF / (1 + G_CPLG_TF_LF)
         G_CPLG_CL_LF = sympy.simplify(G_CPLG_CL_LF)
@@ -471,8 +484,9 @@ def Calc_2Cplg_linear(time_start=0, time_end=10e-9, time_points=1e3,
                       VCO_freq0 = 2*np.pi*24.25e9,
                       Div_N=16*32, K_VCO=2*np.pi*757.47e6,
                       K_PD = 1.6, K_LF = 1, fb_phase = 0,  
-                      s = sympy.Symbol('s'), Nqy_freq = np.linspace(1e3, 100e6, int(1e3)),
-                      Nqy_skip = 10):
+                      s = sympy.Symbol('s', complex=True),
+                      Nqy_freq = np.linspace(1e3, 100e6, int(1e3)),
+                      Nqy_skip = 10, Export_OLTF = False):
     #############################################################################    
     """
     Simple Network of two coupled PLL System in Laplace Domain with default values from
@@ -532,7 +546,6 @@ def Calc_2Cplg_linear(time_start=0, time_end=10e-9, time_points=1e3,
     
     # transfer function of PD Input to CrossCoupling output
     G_CPLG = K_PD * K_VCO/s * 1/Div_N
-    G_CPLG_LF = K_PD * K_LF  * K_VCO/s * 1/Div_N
     
     # Mean Phase for Time Delay
     PhaseError = Omega0_Div * Time_Delay
@@ -551,19 +564,21 @@ def Calc_2Cplg_linear(time_start=0, time_end=10e-9, time_points=1e3,
         
         # calculate in-phase
         Solution_InPhase.append(Net_2Mutually(PhaseDelay, Omega0_Div, G_CPLG, s,
-                                               G_CPLG_LF = G_CPLG_LF,
+                                               K_LF = K_LF,
                                                mode=0, coupling_function = coupling_function,
                                                Nyquist_Freq = Nqy_freq,
                                                calc_networkstab = calc_networkstab,
-                                               feedback_phase = fb_phase))
+                                               feedback_phase = fb_phase,
+                                               Export_OLTF = Export_OLTF))
         
         # calculate anti-phase    
         Solution_AntiPhase.append(Net_2Mutually(PhaseDelay, Omega0_Div, G_CPLG, s,
-                                                 G_CPLG_LF = G_CPLG_LF,
+                                                 K_LF = K_LF,
                                                  mode=np.pi, coupling_function = coupling_function,
                                                  Nyquist_Freq = Nqy_freq,
                                                  calc_networkstab = calc_networkstab,
-                                                 feedback_phase = fb_phase))
+                                                 feedback_phase = fb_phase,
+                                                 Export_OLTF = Export_OLTF))
         
        # Update Progress Bar
         basic.printProgressBar(index + 1, l, length = 50) 
@@ -593,8 +608,10 @@ def Calc_linear(time_start=0, time_end=10e-9, time_points=1e3,
                 VCO_freq0 = 2*np.pi*24.25e9,
                 Div_N=16*32, K_VCO=2*np.pi*757.47e6,
                 K_PD = 1.6, K_LF = 1, fb_phase = 0,  
-                s = sympy.Symbol('s'), Nqy_freq = np.linspace(1e3, 100e6, int(1e3)),
-                Nqy_skip = 10, phi_mode = [0, np.pi], coupling_function = "triangle"):
+                s = sympy.Symbol('s', complex=True),
+                Nqy_freq = np.linspace(1e3, 100e6, int(1e3)),
+                Nqy_skip = 10, phi_mode = [0, np.pi], coupling_function = "triangle",
+                Export_OLTF = False):
     #############################################################################    
     """
     Simple Network of two coupled PLL System in Laplace Domain with default values from
@@ -653,7 +670,6 @@ def Calc_linear(time_start=0, time_end=10e-9, time_points=1e3,
     
     # transfer function of PD Input to CrossCoupling output
     G_CPLG = K_PD * K_VCO/s * 1/Div_N
-    G_CPLG_LF = K_PD * K_LF  * K_VCO/s * 1/Div_N
     
     # Print Loop gain
     GLoop = float(s * G_CPLG)
@@ -684,11 +700,12 @@ def Calc_linear(time_start=0, time_end=10e-9, time_points=1e3,
             
             # calculate in-phase
             SolutionPhase.append(Net_2Mutually(PhaseDelay, Omega0_Div, G_CPLG, s,
-                                          G_CPLG_LF = G_CPLG_LF,
+                                          K_LF = K_LF,
                                           mode=PhaseMode, coupling_function = coupling_function,
                                           Nyquist_Freq = Nqy_freq,
                                           calc_networkstab = calc_networkstab,
-                                          feedback_phase = fb_phase))
+                                          feedback_phase = fb_phase,
+                                          Export_OLTF=Export_OLTF))
                     
             # Update Progress Bar
             index += 1
@@ -721,7 +738,8 @@ def Calc_2Cplg_nonlinear(time_start=0, time_end=10e-9, time_points=1e3,
                       VCO_freq0 = 2*np.pi*24.25e9,
                       Div_N=16*32, K_VCO=2*np.pi*757.47e6,
                       K_PD = 1.6, K_LF = 1,
-                      fb_phase = 0 ):
+                      fb_phase = 0,
+                      Export_OLTF=False, fitmentset=None):
     #############################################################################    
     """
     Simple Network of two coupled PLL System in Laplace Domain with default values from
@@ -755,7 +773,7 @@ def Calc_2Cplg_nonlinear(time_start=0, time_end=10e-9, time_points=1e3,
     #############################################################################
     
     # laplace variable
-    s = sympy.Symbol('s')
+    s = sympy.Symbol('s', complex=True)
     
     # Quiescent PLL Freq
     Omega0_Div = VCO_freq0/Div_N
@@ -776,16 +794,25 @@ def Calc_2Cplg_nonlinear(time_start=0, time_end=10e-9, time_points=1e3,
     # transfer function of PD Input after PETF (Xpd) to CrossCoupling output in steady state
     def  G_CPLG(H_PD, H_prime_PD=None, derivative=False):
         
+        if fitmentset == None:
+            
+            # fitment function parameters (from VCO_FreqVolt fit, ISCAS paper)
+            slope = 2.19447032e9 #1.94522384e9
+            VCO_qp = 20.80e9 #21.2284874e9
+            Vprebias = 2.45 #2.55
+            AdderGain = 1.0 #1.2 #1            
+        
+        else:
+            slope, VCO_qp, Vprebias, AdderGain = fitmentset
+            
         # fitment function parameters (from VCO_FreqVolt fit, ISCAS paper)
-        slope = 2.19447032e9 #1.94522384e9
-        VCO_qp = 20.80e9 #21.2284874e9
-        Vprebias = 2.45 #2.55
+
         
         # Calulate Network frequency based on normalized PD Output
         if not(derivative):
             
             # calculate PD output Voltage, based on H_PD and Offset of VCO Pre-Biasffset
-            A_PD = 2 * 0.8 * H_PD 
+            A_PD = AdderGain * 2 * 0.8 * H_PD 
             
             # calculate vco frequency with nonlinear function
             f_VCO = 2 * np.pi *( VCO_qp + slope * np.sqrt(Vprebias + A_PD) )
@@ -800,7 +827,7 @@ def Calc_2Cplg_nonlinear(time_start=0, time_end=10e-9, time_points=1e3,
         else:
             
             # calculate PD output Voltage, based on H_PD and Offset of VCO Pre-Biasffset
-            A_PD = 2 * 0.8 * H_PD
+            A_PD = AdderGain * 2 * 0.8 * H_PD
             
             # use in steady state this voltage to calcululate vco sensitivity (kvco)
             K_VCO = (2*np.pi*slope) / (2*np.sqrt(Vprebias + A_PD))
@@ -835,17 +862,19 @@ def Calc_2Cplg_nonlinear(time_start=0, time_end=10e-9, time_points=1e3,
         
         # calculate in-phase
         Solution_InPhase.append(Net_2Mutually(PhaseDelay, Omega0_Div, G_CPLG, s,
-                                              mode=0, nonlinear=True,
+                                              mode=0, nonlinear=True, K_LF=K_LF,
                                               coupling_function = coupling_function,
                                               Nyquist_Freq = Nqy_freq,
-                                              calc_networkstab=calc_networkstab))
+                                              calc_networkstab=calc_networkstab,
+                                              Export_OLTF=Export_OLTF))
         
         # calculate anti-phase    
         Solution_AntiPhase.append(Net_2Mutually(PhaseDelay, Omega0_Div, G_CPLG, s,
-                                                mode=np.pi, nonlinear=True,
+                                                mode=np.pi, nonlinear=True, K_LF=K_LF,
                                                 coupling_function = coupling_function,
                                                 Nyquist_Freq = Nqy_freq,
-                                                calc_networkstab=calc_networkstab))
+                                                calc_networkstab=calc_networkstab,
+                                                Export_OLTF=Export_OLTF))
     
  
        # Update Progress Bar
@@ -873,10 +902,11 @@ def Calc_2Cplg_nonlinear(time_start=0, time_end=10e-9, time_points=1e3,
     return {"m_0": Solution_InPhase,  "m_pi": Solution_AntiPhase}
 
 def Calc_nonlinear(time_start=0, time_end=10e-9, time_points=1e3,
-                      VCO_freq0 = 2*np.pi*24.25e9,
+                      VCO_freq0 = 2*np.pi*24.25e9, s = sympy.Symbol('s', complex=True),
                       Div_N=16*32, K_VCO=2*np.pi*757.47e6,
                       K_PD = 1.6, K_LF = 1, Nqy_skip = 10, 
-                      fb_phase = 0, phi_mode = [0, np.pi]):
+                      fb_phase = 0, phi_mode = [0, np.pi],
+                      fitmentset=None, Export_OLTF=False):
     #############################################################################    
     """
     Simple Network of two coupled PLL System in Laplace Domain with default values from
@@ -909,9 +939,6 @@ def Calc_nonlinear(time_start=0, time_end=10e-9, time_points=1e3,
     #           Variables of PLL System and Network Analysis (Default Values)
     #############################################################################
     
-    # laplace variable
-    s = sympy.Symbol('s')
-    
     # Quiescent PLL Freq
     Omega0_Div = VCO_freq0/Div_N
 
@@ -931,11 +958,16 @@ def Calc_nonlinear(time_start=0, time_end=10e-9, time_points=1e3,
     # transfer function of PD Input after PETF (Xpd) to CrossCoupling output in steady state
     def  G_CPLG(H_PD, H_prime_PD=None, derivative=False):
         
-        # fitment function parameters (from VCO_FreqVolt fit, ISCAS paper)
-        slope = 2.19447032e9 #1.94522384e9
-        VCO_qp = 20.80e9 #21.2284874e9
-        Vprebias = 2.55 #2.45 #2.55
-        AdderGain = 1.2 #1
+        if fitmentset == None:
+            
+            # fitment function parameters (from VCO_FreqVolt fit, ISCAS paper)
+            slope = 1.94522384e9 #2.19447032e9 #1.94522384e9
+            VCO_qp = 20.80e9 #21.2284874e9
+            Vprebias = 1.95 #2.55 #2.45 #2.55
+            AdderGain = 1.1 #1.2 #1            
+        
+        else:
+            slope, VCO_qp, Vprebias, AdderGain = fitmentset
         
         # Calulate Network frequency based on normalized PD Output
         if not(derivative):
@@ -1004,9 +1036,10 @@ def Calc_nonlinear(time_start=0, time_end=10e-9, time_points=1e3,
             SolutionPhase.append(Net_2Mutually(PhaseDelay, Omega0_Div, G_CPLG, s,
                                           mode=PhaseMode, nonlinear=True,
                                           coupling_function = coupling_function,
-                                          Nyquist_Freq = Nqy_freq,
+                                          Nyquist_Freq = Nqy_freq,K_LF=K_LF,
                                           calc_networkstab = calc_networkstab,
-                                          feedback_phase = fb_phase))
+                                          feedback_phase = fb_phase,
+                                          Export_OLTF=Export_OLTF))
                     
             # Update Progress Bar
             index += 1
