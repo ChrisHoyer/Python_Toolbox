@@ -847,6 +847,11 @@ def Generic_Plot(func, ax, Plot_list, X_label, Y_label, Legend=True, LegendLoc=0
     # for multiple returns
     returnvals = []
         
+    # check if Plot has entries
+    if len(Plot_list) == 0:
+        print("Nothing to Plot!")
+        return
+    
     for index in range(len(Plot_list)):
         
         plot = Plot_list[index]
@@ -1172,6 +1177,73 @@ def SemiLogX_Plot(ax, Plot_list, X_label, Y_label, **kwargs):
             x_plot = [x_data*X_label[2] for x_data in x_plot]
             
         ax.semilogx(x_plot, y_plot, label=plot[2], **userargs)
+        
+        return ax, x_plot
+
+    # call function and return
+    return Generic_Plot(Process_Plot, ax, Plot_list, X_label, Y_label, **kwargs)
+
+# SemiLogY Plot
+def SemiLogY_Plot(ax, Plot_list, X_label, Y_label, **kwargs):
+    
+    def Process_Plot(ax, plot, Y_label, X_label):
+        
+        """
+        Prepares a X-Y linear plot
+    
+        paramters              description
+        =====================  =============================================:
+        ax                      plotting axis
+        
+        plot                    contains plotting array:
+                                [[XData, YData, "Label"],
+                                 [XData2, YData2, "Label", 'linestyle=dashed'],
+                                 [XData2, YData2, "Label", 'linestyle=dashed, color=k'], ...]
+                                
+        Y_label                 label y axis
+        
+        X_label                 label x axis
+        """       
+                
+        # check dimension of X-Axis if whole trace
+        x_plot = plot[0]
+        
+        # only one marker?
+        if np.size(x_plot) > 1:
+            y_plot = plot[1][0 : np.size(x_plot)]
+        else:
+            y_plot = plot[1]
+        
+        # emtpy argument list
+        userargs = {}
+                
+        # insert plotting arguments
+        if len(plot) >= 4:
+            args = plot[3].strip().replace(" ", "")
+            userargs = dict(e.split('=') for e in args.split(','))
+            
+        # Check if userargs have only numberic values
+        for userarg in userargs:
+            
+            # check if is int            
+            if userargs[userarg].isdigit():
+                userargs[userarg] = int(userargs[userarg])
+                continue
+                
+            # check if is float
+            if userargs[userarg].replace('.','',1).isdigit():
+                userargs[userarg] = float(userargs[userarg])
+                continue
+                
+        # rescaling of the y-axis required?
+        if len(Y_label) == 3:
+            y_plot = [y_data*Y_label[2] for y_data in y_plot]
+ 
+        # rescaling of the x-axis required?
+        if len(X_label) == 3:
+            x_plot = [x_data*X_label[2] for x_data in x_plot]
+            
+        ax.semilogy(x_plot, y_plot, label=plot[2], **userargs)
         
         return ax, x_plot
 
@@ -1532,6 +1604,7 @@ def Vline_Plot(ax, xValue, xLabel, yDistance=0.5, yPos='up', color='r',
     """    
 
 #############################################################################  
+        
     # Add vertical line
     ax.axvline(x=xValue, color=color, **kwargs)
 

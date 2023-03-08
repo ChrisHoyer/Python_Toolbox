@@ -392,24 +392,17 @@ def Perform_Timeseries_Simulation(t_index, dt, results, Osc_Param, Network_Param
         
         # second order RC
         if Osc_Param[osc_index]["lf_fct"].upper() == "2_RC":
-            
-            # additional parameters needed for second order
-            if t_index == 1:
-                results[osc_index]["lf_2nd"] = np.zeros(len(V_out))
-            
+                
             # PD Gain and time constant
             lf_gain = Osc_Param[osc_index]["lf_gain"]
-            lf_tau = Osc_Param[osc_index]["lf_tau"]
-            
-            # calculate first filter
-            dVC1 = 1/(lf_tau[0]) * (V_in[t_index-1] - results[osc_index]["lf_2nd"][t_index-1])
-            results[osc_index]["lf_2nd"][t_index] = results[osc_index]["lf_2nd"][t_index-1] + dt * dVC1
+            lf_tau = np.exp( -dt / np.array(Osc_Param[osc_index]["lf_tau"][0]))  
 
-            # calculate second filter
-            dVC2 = 1/(lf_tau[1]) * (results[osc_index]["lf_2nd"][t_index] - V_out[t_index-1])
-            Vc2 = V_out[t_index-1] + dt * dVC2
-            
-            V_out[t_index] = lf_gain * Vc2
+            # additional parameters needed for second order
+            if t_index == 1:
+                results[osc_index]["lf_2nd"] = np.exp(dt * np.arange( len(V_out) ) / lf_tau)
+                
+            Denom = 1 + 3 * lf_tau*results[osc_index]["lf_2nd"][t_index-1]**-1 + lf_tau**2*results[osc_index]["lf_2nd"][t_index-1]**-2
+            V_out[t_index] = Denom**-1 * V_in[t_index- 1]
                       
             return V_out        
         
@@ -462,18 +455,21 @@ def Perform_Timeseries_Simulation(t_index, dt, results, Osc_Param, Network_Param
                 
         # integration by the oscillator's 1/s
         osc_value = Osc_Param[osc_index]["omega0"] + Osc_Param[osc_index]["K_vco"] * results[osc_index]["vtune"][t_index]
+              
+        # oscillator portion during this time step
+        dt_osc_value = dt * osc_value
 
-        # Add oscillator noise to the phase
+        # Add oscillator noise as Wiener process
         if EnableNoise:
-             osc_value = np.random.normal(osc_value, Osc_Param[osc_index]["vco_noise"])   
-                
+            dt_osc_value = dt_osc_value + np.random.normal( loc=0.0, scale=np.sqrt( Osc_Param[osc_index]["vco_noise_var"] * dt) )
+            
         # divided frequency
-        osc_div_value = osc_value * 1/Osc_Param[osc_index]["div_N"] 
-             
-        # calulate instantaneous phase
-        results[osc_index]["theta"][t_index] = results[osc_index]["theta"][t_index -1] + dt * osc_div_value
-        results[osc_index]["theta_vco"][t_index] = results[osc_index]["theta_vco"][t_index -1] + dt * osc_value
-        
+        dt_osc_div_value = dt_osc_value * 1/Osc_Param[osc_index]["div_N"] 
+
+        # Calculate divided frequency
+        results[osc_index]["theta_vco"][t_index] = results[osc_index]["theta_vco"][t_index -1] + dt_osc_value
+        results[osc_index]["theta"][t_index] = results[osc_index]["theta"][t_index -1] + dt_osc_div_value
+
         # calculate frequency
         results[osc_index]["angular_frequency"][t_index] = (results[osc_index]["theta"][t_index] - results[osc_index]["theta"][t_index - 1])/dt
         results[osc_index]["angular_frequency_vco"][t_index] = (results[osc_index]["theta_vco"][t_index] - results[osc_index]["theta_vco"][t_index - 1])/dt       
@@ -1208,9 +1204,12 @@ def Run_Timeseries(Osc_Param, Network_Param, tstop, dt,
     # Some Infos
     if PrintOutput:
         print("\033[34;1m" + "Time Series Simulation of coupled Oscillators")
-        print("\033[34;1m" + "-> Stop Time {}s using step size {}s ({} points)".format(basic.EngNot(tstop),
-                                                                                       basic.EngNot(dt),
-                                                                                       basic.EngNot(len(t))) )
+        
+        if EnableNoise: print("-> Oscillator noise is enabled!")
+
+        print("-> Stop Time {}s using step size {}s ({} points)".format(basic.EngNot(tstop),
+                                                                        basic.EngNot(dt),
+                                                                        basic.EngNot(len(t))) )
     start_time = time.time()
 
     #############################################################################
@@ -1239,8 +1238,6 @@ def Run_Timeseries(Osc_Param, Network_Param, tstop, dt,
            
         results.append(oscdata)       
  
-    
- 
         # Info - Node Settings
         s_nodes = "\033[34;1m"
         s_nodes += "-> Oscillator {}: natural VCO frequency {}Hz ({}radHz) and initial phase {}rad".format(osc_index+1,
@@ -1259,6 +1256,7 @@ def Run_Timeseries(Osc_Param, Network_Param, tstop, dt,
             s_coupling += "{} <- {}s -> {} ".format(osc_index+1,
                                                   basic.EngNot(Network_Param["cplg_delay"][osc_index, cplg_index[1]]),
                                                   cplg_index[1]+1)
+            
         
         s_coupling += "\033[0m"
 
