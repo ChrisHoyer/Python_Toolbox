@@ -23,8 +23,6 @@ import sympy
 import time
 import numpy as np
 import scipy as sp
-from scipy import signal
-import matplotlib.pyplot as plt
 
 #############################################################################
 ###                 PLL Network Solver
@@ -337,7 +335,7 @@ def Net_2Mutually(phase_delay, omega0_div, G_CPLG, variable,
 
 # Iterative Task during Simulation
 def Perform_Timeseries_Simulation(t_index, dt, results, Osc_Param, Network_Param,
-                                  CheckEnableCplg=False, EnableNoise=False):
+                                  CheckEnableCplg=False):
     
     #############################################################################    
     """
@@ -383,12 +381,52 @@ def Perform_Timeseries_Simulation(t_index, dt, results, Osc_Param, Network_Param
             lf_tau = Osc_Param[osc_index]["lf_tau"]
             
             # calculate next step
-            dVC1 = 1/(lf_tau[0]) * (V_in[t_index-1] - V_out[t_index-1])
-            Vc1 = V_out[t_index-1] + dt * dVC1
+            dVC1 = (V_in[t_index] - V_out[t_index-1]) * 1/(lf_tau[0])
+            VC1 = V_out[t_index-1] + dt * dVC1 
             
-            V_out[t_index] = lf_gain * Vc1
+            V_out[t_index] = lf_gain * VC1
                       
             return V_out
+
+        # first order RC (Alexandos Pollakis)
+        if Osc_Param[osc_index]["lf_fct"].upper() == "1_RC_AP":
+            
+            # PD Gain and time constant
+            lf_gain = Osc_Param[osc_index]["lf_gain"]
+            lf_tau = 1/Osc_Param[osc_index]["lf_tau"][0] * dt
+            
+            # calculate next step
+            dVC1 = V_in[t_index] * 1/(1 + lf_tau)
+            VC1 = dVC1 + V_out[t_index-1] * lf_tau/(1 + lf_tau)
+            
+            V_out[t_index] = lf_gain * VC1
+                      
+            return V_out
+        
+        
+        # second order cascaded RC
+        if Osc_Param[osc_index]["lf_fct"].upper() == "2_RC_Casc":
+                
+            # additional parameters needed for second order
+            if t_index == 1:
+                results[osc_index]["lf_2nd"] = np.zeros(len(V_out))
+            
+            # PD Gain and time constant
+            lf_gain = Osc_Param[osc_index]["lf_gain"]
+            lf_tau = Osc_Param[osc_index]["lf_tau"]
+            
+            # calculate first filter
+            dVC1 = 1/(lf_tau[0]) * (V_in[t_index-1] - results[osc_index]["lf_2nd"][t_index-1])
+            results[osc_index]["lf_2nd"][t_index] = results[osc_index]["lf_2nd"][t_index-1] + dt * dVC1
+
+            # calculate second filter
+            dVC2 = 1/(lf_tau[1]) * (results[osc_index]["lf_2nd"][t_index] - V_out[t_index-1])
+            Vc2 = V_out[t_index-1] + dt * dVC2
+            
+            V_out[t_index] = lf_gain * Vc2
+                      
+            return V_out       
+  
         
         # second order RC
         if Osc_Param[osc_index]["lf_fct"].upper() == "2_RC":
@@ -401,7 +439,7 @@ def Perform_Timeseries_Simulation(t_index, dt, results, Osc_Param, Network_Param
             if t_index == 1:
                 results[osc_index]["lf_2nd"] = np.exp(dt * np.arange( len(V_out) ) / lf_tau)
                 
-            Denom = 1 + 3 * lf_tau*results[osc_index]["lf_2nd"][t_index-1]**-1 + lf_tau**2*results[osc_index]["lf_2nd"][t_index-1]**-2
+            Denom = 1 + lf_tau*results[osc_index]["lf_2nd"][t_index-1]**-1 + lf_tau**2*results[osc_index]["lf_2nd"][t_index-1]**-2
             V_out[t_index] = Denom**-1 * V_in[t_index- 1]
                       
             return V_out        
@@ -432,21 +470,30 @@ def Perform_Timeseries_Simulation(t_index, dt, results, Osc_Param, Network_Param
             phase_own = results[osc_index]["theta"][ t_index - 1 ]
             phase_cplg = cplg_theta[ t_index - 1 - int(cplg_delay/dt) ]
             
-            
             # check if coupling can be established, otherwise the input is zero
             if CheckEnableCplg and t_index <= int(cplg_delay/dt):
                     phase_cplg = 0
             
             # calculate coupling input
             v_add += cplg_gain * PD_Fct(phase_cplg, phase_own, osc_index)
+                    
+        # Check if there is any coupling present, otherwise close loop 
+        # with 0 at PD input
+        if not(Network_Param["cplg_gain"][osc_index, ::].any()):
+            phase_own = results[osc_index]["theta"][ t_index - 1 ]
+            v_add = PD_Fct(0.0, phase_own, osc_index)
             
+        # Add adder noise as Wiener process  (Euler-Maruyama)
+        if "adder_noise_var" in Osc_Param[osc_index].keys():
+            v_add +=  np.random.normal( loc=0.0, scale=np.sqrt( Osc_Param[osc_index]["adder_noise_var"] * dt) )
+        
         return v_add
     
     #############################################################################
     
     # Calculus for each oscillator
     for osc_index in range(len(results)):
-          
+                 
         # adder voltage
         results[osc_index]["vadd"][t_index] = PD_Adder(osc_index)
 
@@ -459,9 +506,9 @@ def Perform_Timeseries_Simulation(t_index, dt, results, Osc_Param, Network_Param
         # oscillator portion during this time step
         dt_osc_value = dt * osc_value
 
-        # Add oscillator noise as Wiener process
-        if EnableNoise:
-            dt_osc_value = dt_osc_value + np.random.normal( loc=0.0, scale=np.sqrt( Osc_Param[osc_index]["vco_noise_var"] * dt) )
+        # Add oscillator noise as Wiener process (Euler-Maruyama)
+        if "vco_noise_var" in Osc_Param[osc_index].keys():
+            dt_osc_value =  np.random.normal( loc=dt_osc_value, scale=np.sqrt( Osc_Param[osc_index]["vco_noise_var"] * dt) )
             
         # divided frequency
         dt_osc_div_value = dt_osc_value * 1/Osc_Param[osc_index]["div_N"] 
@@ -1074,7 +1121,7 @@ def Calc_nonlinear(time_start=0, time_end=10e-9, time_points=1e3,
 def Run_Timeseries(Osc_Param, Network_Param, tstop, dt,
                    threshold_steadystate_phase=1e-4,
                    threshold_steadystate_freq=5e-5,
-                   PrintOutput=True, EnableCouplingAtDelay=False, EnableNoise=False):
+                   PrintOutput=True, EnableCouplingAtDelay=False):
     
     #############################################################################    
     """
@@ -1106,7 +1153,6 @@ def Run_Timeseries(Osc_Param, Network_Param, tstop, dt,
     threshold_steadystate_freq          threshold for detection of steady state of the frequency 
                       
     EnableCouplingAtDelay               disable coupling until delay is reached
-    EnableNoise                         enable oscillator noise
                             
     example with 3 nodes in chain
 
@@ -1204,8 +1250,6 @@ def Run_Timeseries(Osc_Param, Network_Param, tstop, dt,
     # Some Infos
     if PrintOutput:
         print("\033[34;1m" + "Time Series Simulation of coupled Oscillators")
-        
-        if EnableNoise: print("-> Oscillator noise is enabled!")
 
         print("-> Stop Time {}s using step size {}s ({} points)".format(basic.EngNot(tstop),
                                                                         basic.EngNot(dt),
@@ -1273,7 +1317,9 @@ def Run_Timeseries(Osc_Param, Network_Param, tstop, dt,
     for i in range(1, len(t)):
         
         # Calulation
-        Perform_Timeseries_Simulation(i, dt, results, Osc_Param, Network_Param, CheckEnableCplg=EnableCouplingAtDelay, EnableNoise=EnableNoise)
+        Perform_Timeseries_Simulation(i, dt, results,
+                                      Osc_Param, Network_Param,
+                                      CheckEnableCplg=EnableCouplingAtDelay)
         
         # Update Progress Bar
         basic.printProgressBar(i + 1, len(t), length = 50) 
