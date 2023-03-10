@@ -380,24 +380,9 @@ def Perform_Timeseries_Simulation(t_index, dt, results, Osc_Param, Network_Param
             lf_gain = Osc_Param[osc_index]["lf_gain"]
             lf_tau = Osc_Param[osc_index]["lf_tau"]
             
-            # calculate next step
+            # calculate first stage
             dVC1 = (V_in[t_index] - V_out[t_index-1]) * 1/(lf_tau[0])
             VC1 = V_out[t_index-1] + dt * dVC1 
-            
-            V_out[t_index] = lf_gain * VC1
-                      
-            return V_out
-
-        # first order RC (Alexandos Pollakis)
-        if Osc_Param[osc_index]["lf_fct"].upper() == "1_RC_AP":
-            
-            # PD Gain and time constant
-            lf_gain = Osc_Param[osc_index]["lf_gain"]
-            lf_tau = 1/Osc_Param[osc_index]["lf_tau"][0] * dt
-            
-            # calculate next step
-            dVC1 = V_in[t_index] * 1/(1 + lf_tau)
-            VC1 = dVC1 + V_out[t_index-1] * lf_tau/(1 + lf_tau)
             
             V_out[t_index] = lf_gain * VC1
                       
@@ -416,14 +401,14 @@ def Perform_Timeseries_Simulation(t_index, dt, results, Osc_Param, Network_Param
             lf_tau = Osc_Param[osc_index]["lf_tau"]
             
             # calculate first filter
-            dVC1 = 1/(lf_tau[0]) * (V_in[t_index-1] - results[osc_index]["lf_2nd"][t_index-1])
-            results[osc_index]["lf_2nd"][t_index] = results[osc_index]["lf_2nd"][t_index-1] + dt * dVC1
+            dVC1 = (V_in[t_index] - results[osc_index]["lf_2nd"][t_index-1]) * 1/(lf_tau[0])
+            VC1 = results[osc_index]["lf_2nd"][t_index-1] + dt * dVC1 
 
             # calculate second filter
-            dVC2 = 1/(lf_tau[1]) * (results[osc_index]["lf_2nd"][t_index] - V_out[t_index-1])
-            Vc2 = V_out[t_index-1] + dt * dVC2
+            dVC2 = (results[osc_index]["lf_2nd"][t_index] - V_out[t_index-1]) * 1/(lf_tau[1])
+            VC2 = V_out[t_index-1] + dt * dVC2
             
-            V_out[t_index] = lf_gain * Vc2
+            V_out[t_index] = lf_gain * VC2
                       
             return V_out       
   
@@ -446,8 +431,7 @@ def Perform_Timeseries_Simulation(t_index, dt, results, Osc_Param, Network_Param
         
         
         # no filter Vout = Vin
-        else:
-            return V_in
+        return V_in
 
     #############################################################################
     
@@ -500,19 +484,24 @@ def Perform_Timeseries_Simulation(t_index, dt, results, Osc_Param, Network_Param
         # calculate tuning voltage using loop filter
         results[osc_index]["vtune"] = LF_Fct( results[osc_index]["vtune"], results[osc_index]["vadd"], osc_index)
                 
-        # integration by the oscillator's 1/s
+        # calculate VCO Output Voltage
         osc_value = Osc_Param[osc_index]["omega0"] + Osc_Param[osc_index]["K_vco"] * results[osc_index]["vtune"][t_index]
-              
-        # oscillator portion during this time step
+ 
+        # Next Iterations Value
         dt_osc_value = dt * osc_value
 
         # Add oscillator noise as Wiener process (Euler-Maruyama)
-        if "vco_noise_var" in Osc_Param[osc_index].keys():
-            dt_osc_value =  np.random.normal( loc=dt_osc_value, scale=np.sqrt( Osc_Param[osc_index]["vco_noise_var"] * dt) )
+        if "vco_noise" in Osc_Param[osc_index].keys():
             
+            # Generate phase noise
+            fn = Osc_Param[osc_index]["vco_noise"][0] * np.random.randn() # flicker noise
+            wn = Osc_Param[osc_index]["vco_noise"][1] * np.random.randn() # white noise
+            
+            osc_value +=  2 * np.pi * fn * dt + np.sqrt( 2 * np.pi * Osc_Param[osc_index]["vco_noise"][1] * dt) * wn
+ 
         # divided frequency
         dt_osc_div_value = dt_osc_value * 1/Osc_Param[osc_index]["div_N"] 
-
+            
         # Calculate divided frequency
         results[osc_index]["theta_vco"][t_index] = results[osc_index]["theta_vco"][t_index -1] + dt_osc_value
         results[osc_index]["theta"][t_index] = results[osc_index]["theta"][t_index -1] + dt_osc_div_value
