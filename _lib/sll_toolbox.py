@@ -374,21 +374,21 @@ def Perform_Timeseries_Simulation(t_index, dt, results, Osc_Param, Network_Param
     def LF_Fct(V_out, V_in, osc_index):
       
         # first order RC
+        # https://en.wikipedia.org/wiki/Low-pass_filter#Discrete-time_realization
         if Osc_Param[osc_index]["lf_fct"].upper() == "1_RC":
             
-            # PD Gain and time constant
-            lf_gain = Osc_Param[osc_index]["lf_gain"]
-            lf_tau = Osc_Param[osc_index]["lf_tau"]
+            # PD Gain and time constant RC
+            lf_tau = Osc_Param[osc_index]["lf_tau"][0]
             
             # calculate first stage
-            dVC1 = (V_in[t_index] - V_out[t_index-1]) * 1/(lf_tau[0])
-            VC1 = V_out[t_index-1] + dt * dVC1 
+            dVC1 = V_out[t_index - 1] * (lf_tau)/(dt + lf_tau)
+            VC1 = V_in[t_index] * dt/(dt + lf_tau)
             
-            V_out[t_index] = lf_gain * VC1
+            V_out[t_index] = VC1 + dVC1
                       
             return V_out
-        
-        
+
+
         # second order cascaded RC
         if Osc_Param[osc_index]["lf_fct"].upper() == "2_RC_Casc":
                 
@@ -397,18 +397,20 @@ def Perform_Timeseries_Simulation(t_index, dt, results, Osc_Param, Network_Param
                 results[osc_index]["lf_2nd"] = np.zeros(len(V_out))
             
             # PD Gain and time constant
-            lf_gain = Osc_Param[osc_index]["lf_gain"]
-            lf_tau = Osc_Param[osc_index]["lf_tau"]
+            lf_tau1 = Osc_Param[osc_index]["lf_tau"][0]
+            lf_tau2 = Osc_Param[osc_index]["lf_tau"][1]
             
             # calculate first filter
-            dVC1 = (V_in[t_index] - results[osc_index]["lf_2nd"][t_index-1]) * 1/(lf_tau[0])
-            VC1 = results[osc_index]["lf_2nd"][t_index-1] + dt * dVC1 
-
-            # calculate second filter
-            dVC2 = (results[osc_index]["lf_2nd"][t_index] - V_out[t_index-1]) * 1/(lf_tau[1])
-            VC2 = V_out[t_index-1] + dt * dVC2
+            dVC1 = results[osc_index]["lf_2nd"][t_index - 1] * (lf_tau1)/(dt + lf_tau1)
+            VC1 = V_in[t_index] * dt/(dt + lf_tau1 )
             
-            V_out[t_index] = lf_gain * VC2
+            results[osc_index]["lf_2nd"][t_index] = VC1 + dVC1
+
+            # calculate second stage
+            dVC2 = V_out[t_index - 1] * (lf_tau2 )/(dt + lf_tau2)
+            VC2 = results[osc_index]["lf_2nd"][t_index] * dt/(dt + lf_tau2)
+            
+            V_out[t_index] = VC2 + dVC2
                       
             return V_out       
   
@@ -466,10 +468,6 @@ def Perform_Timeseries_Simulation(t_index, dt, results, Osc_Param, Network_Param
         if not(Network_Param["cplg_gain"][osc_index, ::].any()):
             phase_own = results[osc_index]["theta"][ t_index - 1 ]
             v_add = PD_Fct(0.0, phase_own, osc_index)
-            
-        # Add adder noise as Wiener process  (Euler-Maruyama)
-        if "adder_noise_var" in Osc_Param[osc_index].keys():
-            v_add +=  np.random.normal( loc=0.0, scale=np.sqrt( Osc_Param[osc_index]["adder_noise_var"] * dt) )
         
         return v_add
     
@@ -1250,6 +1248,9 @@ def Run_Timeseries(Osc_Param, Network_Param, tstop, dt,
     # Initialize solution arrays
     for osc_index in range(len(Osc_Param)):
         
+        # check if all neccessary variables are set
+        if not("div_N" in Osc_Param[osc_index].keys()): Osc_Param[osc_index]["div_N"] = 1
+        
         oscdata = {}
         
         # node voltages / values
@@ -1271,6 +1272,7 @@ def Run_Timeseries(Osc_Param, Network_Param, tstop, dt,
            
         results.append(oscdata)       
  
+    
         # Info - Node Settings
         s_nodes = "\033[34;1m"
         s_nodes += "-> Oscillator {}: natural VCO frequency {}Hz ({}radHz) and initial phase {}rad".format(osc_index+1,
