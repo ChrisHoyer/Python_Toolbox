@@ -1299,11 +1299,11 @@ def Box_Plot (ax, Plot_list, X_label, Y_label, **kwargs):
                 
         # rescaling of the y-axis required?
         if len(Y_label) == 3:
-            y_plot = [y_data*Y_label[2] for y_data in y_plot]
+            y_plot = [np.asarray(y_data)*Y_label[2] for y_data in y_plot]
  
         # rescaling of the x-axis required?
         if len(X_label) == 3:
-            x_plot = [x_data*X_label[2] for x_data in x_plot]
+            x_plot = [np.asarray(x_data)*X_label[2] for x_data in x_plot]
             
             
         # Color? -> Some Special Threatment
