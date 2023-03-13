@@ -23,6 +23,7 @@ import sympy
 import time
 import numpy as np
 import scipy as sp
+from scipy import signal
 
 #############################################################################
 ###                 PLL Network Solver

@@ -1317,7 +1317,7 @@ def Box_Plot (ax, Plot_list, X_label, Y_label, **kwargs):
             userargs["capprops"] = dict(color=color)
             userargs["whiskerprops"] = dict(color=color)
             userargs["medianprops"] = dict(color='k')
-            userargs["flierprops"] = dict(marker='x', markersize = 4, markeredgecolor=color)
+            userargs["flierprops"] = dict(marker='x', markersize = 2, markeredgecolor=color)
             
             # remove "color" from list
             userargs.pop("color")
@@ -2720,13 +2720,13 @@ def MovingFilter(Xdata, Ydata, N=3):
 #############################################################################  	
 	# Return type
     return_dict = {}
-    return_dict["YData"] = moving_aves             
-    return_dict["XData"] = Xdata[int((N-1)/2):-1*int((N-1)/2)] 
+    return_dict["YData"] = np.array( moving_aves )        
+    return_dict["XData"] = np.array( Xdata[int((N-1)/2):-1*int((N-1)/2)] )
 
     # return List
-    return_dict = [] 
-    return_dict.append( np.array(Xdata[int((N-1)/2):-1*int((N-1)/2)]) )
-    return_dict.append( np.array(moving_aves) )    
+    #return_dict = [] 
+    #return_dict.append( np.array(Xdata[int((N-1)/2):-1*int((N-1)/2)]) )
+    #return_dict.append( np.array(moving_aves) )    
     return return_dict   
 
 #############################################################################
