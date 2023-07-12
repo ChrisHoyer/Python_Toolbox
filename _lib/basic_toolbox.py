@@ -779,7 +779,8 @@ def Generic_Plot(func, ax, Plot_list, X_label, Y_label, Legend=True, LegendLoc=0
                 XAutolim=True, fontsize=7, TicksEng=True, XTicksLabel=None,
                 YTicksLabel=None,legendcol=1,fontsize_label=8, yaxis_pad=0, xaxis_pad=0, 
                 BlackWhite=False, grid = True, minorgridalpha=.3, majorgridalpha=.6,
-                legendalpha=1, funcReturn=False, **kwargs):
+                legendalpha=1, funcReturn=False, grid_lw_major=1.2, grid_lw_minor=1.0,
+                **kwargs):
 #############################################################################  
     """
     Prepares a X-Y linear plot
@@ -971,8 +972,8 @@ def Generic_Plot(func, ax, Plot_list, X_label, Y_label, Legend=True, LegendLoc=0
         if grid:
             
             ax.minorticks_on()
-            ax.grid(which='major', alpha=majorgridalpha, linestyle='-',linewidth=1.2) 
-            ax.grid(which='minor', alpha=minorgridalpha, linestyle=':', linewidth=1)
+            ax.grid(which='major', alpha=majorgridalpha, linestyle='-',linewidth=grid_lw_major) 
+            ax.grid(which='minor', alpha=minorgridalpha, linestyle=':', linewidth=grid_lw_minor)
             
             
 
