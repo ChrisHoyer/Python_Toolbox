@@ -2829,5 +2829,30 @@ def EngNot( x, sig_figs=3, si=True, exp=True):
         exp3_text = 'e%s' % exp3
 
     return ( '%s%s%s') % ( sign, x3, exp3_text)
-    
   
+ #############################################################################
+ ###        Reverse Engineering Notation
+ #############################################################################       
+def RevEngNot( x ):
+    """
+    Returns float/int value <x> from SI formatted input 
+    """
+    
+    pos_postfixes = ['k', 'M', 'G', 'T', 'P', 'E', 'Z', 'Y']
+    neg_postfixes = ['m', 'u', 'n', 'p', 'f', 'a', 'z', 'y']
+
+    num_postfix = x[-1]
+    
+    if num_postfix in pos_postfixes:
+        num = float(x[:-1])
+        num*=10**((pos_postfixes.index(num_postfix)+1)*3)
+    elif num_postfix in neg_postfixes:
+        num = float(x[:-1])
+        num*=10**(-(neg_postfixes.index(num_postfix)+1)*3)
+    else:
+        num = float(x)
+ 
+    if np.isnan(num):
+        return ""
+             
+    return num
