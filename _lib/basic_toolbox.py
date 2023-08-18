@@ -780,6 +780,7 @@ def Generic_Plot(func, ax, Plot_list, X_label, Y_label, Legend=True, LegendLoc=0
                 YTicksLabel=None,legendcol=1,fontsize_label=8, yaxis_pad=0, xaxis_pad=0, 
                 BlackWhite=False, grid = True, minorgridalpha=.3, majorgridalpha=.6,
                 legendalpha=1, funcReturn=False, grid_lw_major=1.2, grid_lw_minor=1.0,
+                grid_zorder=-10,
                 **kwargs):
 #############################################################################  
     """
@@ -972,8 +973,10 @@ def Generic_Plot(func, ax, Plot_list, X_label, Y_label, Legend=True, LegendLoc=0
         if grid:
             
             ax.minorticks_on()
-            ax.grid(which='major', alpha=majorgridalpha, linestyle='-',linewidth=grid_lw_major) 
-            ax.grid(which='minor', alpha=minorgridalpha, linestyle=':', linewidth=grid_lw_minor)
+            ax.grid(which='major', alpha=majorgridalpha, linestyle='-',
+                    linewidth=grid_lw_major, zorder=grid_zorder) 
+            ax.grid(which='minor', alpha=minorgridalpha, linestyle=':',
+                    linewidth=grid_lw_minor, zorder=grid_zorder)
             
             
 
@@ -1416,6 +1419,64 @@ def Histogram_Plot(ax, Plot_list, X_label, Y_label, FreedmanDiacoins=True, **kwa
 
     # call function and return
     return Generic_Plot(Process_Plot, ax, Plot_list, X_label, Y_label, XAutolim=False, **kwargs)
+
+# "Normal" plot
+def Barh_Plot(ax, Plot_list, X_label, Y_label, **kwargs):
+
+    def Process_Plot(ax, plot, Y_label, X_label):
+        
+        """
+        Prepares a X-Y linear plot
+    
+        paramters              description
+        =====================  =============================================:
+        ax                      plotting axis
+        
+        plot                    contains plotting array:
+                                [[YData, Width, "Label"],
+                                 [YData2, Width2, "Label", 'linestyle=dashed'],
+                                 [YData3, Width3, "Label", 'linestyle=dashed, color=k'], ...]
+                                
+        Y_label                 label y axis
+        
+        X_label                 label x axis
+        """       
+                
+        # check dimension of X-Axis if whole trace
+        y_plot = plot[0]
+        width_plot = plot[1]
+                
+        # emtpy argument list
+        userargs = {}
+                
+        # insert plotting arguments
+        if len(plot) >= 4:
+            args = plot[3].strip().replace(" ", "")
+            userargs = dict(e.split('=') for e in args.split(','))
+            
+        # Check if userargs have only numberic values
+        for userarg in userargs:
+            
+            # check if is int            
+            if userargs[userarg].isdigit():
+                userargs[userarg] = int(userargs[userarg])
+                continue
+                
+            # check if is float
+            if userargs[userarg].replace('.','',1).isdigit():
+                userargs[userarg] = float(userargs[userarg])
+                continue
+                 
+        # rescaling of the x-axis required?
+        if len(X_label) == 3:
+            width_plot = width_plot * X_label[2]
+            
+        ax.barh(y_plot, width_plot, label=plot[2], **userargs)
+        
+        return ax, width_plot
+
+    # call function and return
+    return Generic_Plot(Process_Plot, ax, Plot_list, X_label, Y_label, **kwargs)
 
 
 #############################################################################
