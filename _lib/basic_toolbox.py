@@ -2752,7 +2752,7 @@ def Spectrum_Minimizer(Freq_Matrix, Mag_Matrix, nanvalue=-100, minmax=True,
 #############################################################################
 ##          Moving Filter
 #############################################################################
-def MovingFilter(Xdata, Ydata, N=3):
+def MovingFilter(Xdata, Ydata, FilterType="MovingAvg", **kwargs):
 ############################################################################# 
     """
     Simple Moving Filter
@@ -2761,35 +2761,86 @@ def MovingFilter(Xdata, Ydata, N=3):
     =====================  =============================================:
     Ydata                   Filter Y Data
     Xdata                   Correspnding X Data
-    N                       (optional) Moving Filter Size
-    minmax                  
+    FilterType              Select Filter Type
+    *kwargs                 Additional Filter Parameters                  
     
     return type
        YData, XData as Dict
                  
     """  
+    # https://stackoverflow.com/questions/13728392/moving-average-or-running-mean
     # moving average
-    cumsum, moving_aves = [0], []
-    
-    for i, x in enumerate(Ydata, 1):
-        cumsum.append(cumsum[i-1] + x)
-        if i >= N:
-            moving_ave = (cumsum[i] - cumsum[i-N])/N
-            #can do stuff with moving_ave here
-            moving_aves.append(moving_ave)            
+    def MovingAverage(Xdata, Ydata, N=3):
+        
+        cumsum, moving_aves = [0], []
+        
+        for i, x in enumerate(Ydata, 1):
+            cumsum.append(cumsum[i-1] + x)
+            if i >= N:
+                moving_ave = (cumsum[i] - cumsum[i-N])/N
+                moving_aves.append(moving_ave)
+                
+        return_dict = {}
+        return_dict["YData"] = np.array( moving_aves )        
+        return_dict["XData"] = np.array( Xdata[int((N-1)/2):-1*int((N-1)/2)] )
+        
+        return return_dict
  
+    # ==============================================================
+    # https://stackoverflow.com/questions/34235530/how-to-get-high-and-low-envelope-of-a-signal
+    # envelope
+    def Envelope(Xdata, Ydata, dmin=1, dmax=1, split=False):
+        """
+        Input :
+        s:          1d-array, data signal from which to extract high and low envelopes
+        dmin, dmax: int, optional, size of chunks, use this if the size of the 
+                    input signal is too big
+        split:      bool, optional, if True, split the signal in half along its mean
+                    might help to generate the envelope in some cases
+        
+        """
     
-#############################################################################  	
-	# Return type
-    return_dict = {}
-    return_dict["YData"] = np.array( moving_aves )        
-    return_dict["XData"] = np.array( Xdata[int((N-1)/2):-1*int((N-1)/2)] )
+        # locals min and maxima     
+        lmin = (np.diff(np.sign(np.diff(Ydata))) > 0).nonzero()[0] + 1 
+        lmax = (np.diff(np.sign(np.diff(Ydata))) < 0).nonzero()[0] + 1 
+        
+        if split:
+            # s_mid is zero if s centered around x-axis or more generally mean of signal
+            s_mid = np.mean( Ydata )
+            
+            # pre-sorting of locals min based on relative position with respect to s_mid 
+            lmin = lmin[ Ydata[lmin]<s_mid]
+            
+            # pre-sorting of local max based on relative position with respect to s_mid 
+            lmax = lmax[ Ydata[lmax]>s_mid]
+    
+        # global min of dmin-chunks of locals min 
+        lmin = lmin[[i+np.argmin(Ydata[lmin[i:i+dmin]]) for i in range(0,len(lmin),dmin)]]
+        
+        # global max of dmax-chunks of locals max 
+        lmax = lmax[[i+np.argmax(Ydata[lmax[i:i+dmax]]) for i in range(0,len(lmax),dmax)]]
 
-    # return List
-    #return_dict = [] 
-    #return_dict.append( np.array(Xdata[int((N-1)/2):-1*int((N-1)/2)]) )
-    #return_dict.append( np.array(moving_aves) )    
-    return return_dict   
+        return_dict = {}
+        
+        return_dict["YData_min"] = Ydata[lmin] 
+        return_dict["XData_min"] = Xdata[lmin]
+        
+        return_dict["YData_max"] = Ydata[lmax] 
+        return_dict["XData_max"] = Xdata[lmax]
+
+        return return_dict
+  
+    
+    # ===============================================================
+	# Select Filter
+
+    if FilterType == "MovingAvg":
+        return MovingAverage(Xdata, Ydata, **kwargs)
+        
+    if FilterType == "Envelope":
+        return Envelope(Xdata, Ydata, **kwargs)
+          
+
 
 #############################################################################
 ##          Limit Dataset using Center
