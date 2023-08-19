@@ -1420,7 +1420,73 @@ def Histogram_Plot(ax, Plot_list, X_label, Y_label, FreedmanDiacoins=True, **kwa
     # call function and return
     return Generic_Plot(Process_Plot, ax, Plot_list, X_label, Y_label, XAutolim=False, **kwargs)
 
-# "Normal" plot
+# Barh plot
+def Bar_Plot(ax, Plot_list, X_label, Y_label, **kwargs):
+
+    def Process_Plot(ax, plot, Y_label, X_label):
+        
+        """
+        Prepares a X-Y linear plot
+    
+        paramters              description
+        =====================  =============================================:
+        ax                      plotting axis
+        
+        plot                    contains plotting array:
+                                [[YData, Width, "Label"],
+                                 [YData2, Width2, "Label", 'linestyle=dashed'],
+                                 [YData3, Width3, "Label", 'linestyle=dashed, color=k'], ...]
+                                
+        Y_label                 label y axis
+        
+        X_label                 label x axis
+        """       
+                
+        # check dimension of X-Axis if whole trace
+        x_plot = plot[0]
+        height_plot = plot[1]
+                
+        # emtpy argument list
+        userargs = {}
+                
+        # insert plotting arguments
+        if len(plot) >= 4:
+            args = plot[3].strip().replace(" ", "")
+            userargs = dict(e.split('=') for e in args.split(','))
+            
+        # Check if userargs have only numberic values
+        for userarg in userargs:
+            
+            # check if is int            
+            if userargs[userarg].isdigit():
+                userargs[userarg] = int(userargs[userarg])
+                continue
+                
+            # check if is float
+            if userargs[userarg].replace('.','',1).isdigit():
+                userargs[userarg] = float(userargs[userarg])
+                continue
+            
+            # check if us bool
+            if userargs[userarg] == "True":
+                userargs[userarg] = True
+                continue            
+            if userargs[userarg] == "False":
+                userargs[userarg] = False
+                continue     
+                 
+        # rescaling of the x-axis required?
+        if len(Y_label) == 3:
+            height_plot = height_plot * Y_label[2]
+            
+        ax.bar(x_plot, height_plot, label=plot[2], **userargs)
+        
+        return ax, x_plot
+
+    # call function and return
+    return Generic_Plot(Process_Plot, ax, Plot_list, X_label, Y_label, **kwargs)
+
+# Barh plot
 def Barh_Plot(ax, Plot_list, X_label, Y_label, **kwargs):
 
     def Process_Plot(ax, plot, Y_label, X_label):
@@ -1466,6 +1532,14 @@ def Barh_Plot(ax, Plot_list, X_label, Y_label, **kwargs):
             if userargs[userarg].replace('.','',1).isdigit():
                 userargs[userarg] = float(userargs[userarg])
                 continue
+            
+            # check if us bool
+            if userargs[userarg] == "True":
+                userargs[userarg] = True
+                continue            
+            if userargs[userarg] == "False":
+                userargs[userarg] = False
+                continue     
                  
         # rescaling of the x-axis required?
         if len(X_label) == 3:
@@ -1473,7 +1547,7 @@ def Barh_Plot(ax, Plot_list, X_label, Y_label, **kwargs):
             
         ax.barh(y_plot, width_plot, label=plot[2], **userargs)
         
-        return ax, width_plot
+        return ax, y_plot
 
     # call function and return
     return Generic_Plot(Process_Plot, ax, Plot_list, X_label, Y_label, **kwargs)
