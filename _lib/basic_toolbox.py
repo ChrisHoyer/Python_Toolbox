@@ -1420,7 +1420,73 @@ def Histogram_Plot(ax, Plot_list, X_label, Y_label, FreedmanDiacoins=True, **kwa
     # call function and return
     return Generic_Plot(Process_Plot, ax, Plot_list, X_label, Y_label, XAutolim=False, **kwargs)
 
-# "Normal" plot
+# Barh plot
+def Bar_Plot(ax, Plot_list, X_label, Y_label, **kwargs):
+
+    def Process_Plot(ax, plot, Y_label, X_label):
+        
+        """
+        Prepares a X-Y linear plot
+    
+        paramters              description
+        =====================  =============================================:
+        ax                      plotting axis
+        
+        plot                    contains plotting array:
+                                [[YData, Width, "Label"],
+                                 [YData2, Width2, "Label", 'linestyle=dashed'],
+                                 [YData3, Width3, "Label", 'linestyle=dashed, color=k'], ...]
+                                
+        Y_label                 label y axis
+        
+        X_label                 label x axis
+        """       
+                
+        # check dimension of X-Axis if whole trace
+        x_plot = plot[0]
+        height_plot = plot[1]
+                
+        # emtpy argument list
+        userargs = {}
+                
+        # insert plotting arguments
+        if len(plot) >= 4:
+            args = plot[3].strip().replace(" ", "")
+            userargs = dict(e.split('=') for e in args.split(','))
+            
+        # Check if userargs have only numberic values
+        for userarg in userargs:
+            
+            # check if is int            
+            if userargs[userarg].isdigit():
+                userargs[userarg] = int(userargs[userarg])
+                continue
+                
+            # check if is float
+            if userargs[userarg].replace('.','',1).isdigit():
+                userargs[userarg] = float(userargs[userarg])
+                continue
+            
+            # check if us bool
+            if userargs[userarg] == "True":
+                userargs[userarg] = True
+                continue            
+            if userargs[userarg] == "False":
+                userargs[userarg] = False
+                continue     
+                 
+        # rescaling of the x-axis required?
+        if len(Y_label) == 3:
+            height_plot = height_plot * Y_label[2]
+            
+        ax.bar(x_plot, height_plot, label=plot[2], **userargs)
+        
+        return ax, x_plot
+
+    # call function and return
+    return Generic_Plot(Process_Plot, ax, Plot_list, X_label, Y_label, **kwargs)
+
+# Barh plot
 def Barh_Plot(ax, Plot_list, X_label, Y_label, **kwargs):
 
     def Process_Plot(ax, plot, Y_label, X_label):
@@ -1466,6 +1532,14 @@ def Barh_Plot(ax, Plot_list, X_label, Y_label, **kwargs):
             if userargs[userarg].replace('.','',1).isdigit():
                 userargs[userarg] = float(userargs[userarg])
                 continue
+            
+            # check if us bool
+            if userargs[userarg] == "True":
+                userargs[userarg] = True
+                continue            
+            if userargs[userarg] == "False":
+                userargs[userarg] = False
+                continue     
                  
         # rescaling of the x-axis required?
         if len(X_label) == 3:
@@ -1473,7 +1547,7 @@ def Barh_Plot(ax, Plot_list, X_label, Y_label, **kwargs):
             
         ax.barh(y_plot, width_plot, label=plot[2], **userargs)
         
-        return ax, width_plot
+        return ax, y_plot
 
     # call function and return
     return Generic_Plot(Process_Plot, ax, Plot_list, X_label, Y_label, **kwargs)
@@ -2752,7 +2826,7 @@ def Spectrum_Minimizer(Freq_Matrix, Mag_Matrix, nanvalue=-100, minmax=True,
 #############################################################################
 ##          Moving Filter
 #############################################################################
-def MovingFilter(Xdata, Ydata, N=3):
+def MovingFilter(Xdata, Ydata, FilterType="MovingAvg", **kwargs):
 ############################################################################# 
     """
     Simple Moving Filter
@@ -2761,35 +2835,86 @@ def MovingFilter(Xdata, Ydata, N=3):
     =====================  =============================================:
     Ydata                   Filter Y Data
     Xdata                   Correspnding X Data
-    N                       (optional) Moving Filter Size
-    minmax                  
+    FilterType              Select Filter Type
+    *kwargs                 Additional Filter Parameters                  
     
     return type
        YData, XData as Dict
                  
     """  
+    # https://stackoverflow.com/questions/13728392/moving-average-or-running-mean
     # moving average
-    cumsum, moving_aves = [0], []
-    
-    for i, x in enumerate(Ydata, 1):
-        cumsum.append(cumsum[i-1] + x)
-        if i >= N:
-            moving_ave = (cumsum[i] - cumsum[i-N])/N
-            #can do stuff with moving_ave here
-            moving_aves.append(moving_ave)            
+    def MovingAverage(Xdata, Ydata, N=3):
+        
+        cumsum, moving_aves = [0], []
+        
+        for i, x in enumerate(Ydata, 1):
+            cumsum.append(cumsum[i-1] + x)
+            if i >= N:
+                moving_ave = (cumsum[i] - cumsum[i-N])/N
+                moving_aves.append(moving_ave)
+                
+        return_dict = {}
+        return_dict["YData"] = np.array( moving_aves )        
+        return_dict["XData"] = np.array( Xdata[int((N-1)/2):-1*int((N-1)/2)] )
+        
+        return return_dict
  
+    # ==============================================================
+    # https://stackoverflow.com/questions/34235530/how-to-get-high-and-low-envelope-of-a-signal
+    # envelope
+    def Envelope(Xdata, Ydata, dmin=1, dmax=1, split=False):
+        """
+        Input :
+        s:          1d-array, data signal from which to extract high and low envelopes
+        dmin, dmax: int, optional, size of chunks, use this if the size of the 
+                    input signal is too big
+        split:      bool, optional, if True, split the signal in half along its mean
+                    might help to generate the envelope in some cases
+        
+        """
     
-#############################################################################  	
-	# Return type
-    return_dict = {}
-    return_dict["YData"] = np.array( moving_aves )        
-    return_dict["XData"] = np.array( Xdata[int((N-1)/2):-1*int((N-1)/2)] )
+        # locals min and maxima     
+        lmin = (np.diff(np.sign(np.diff(Ydata))) > 0).nonzero()[0] + 1 
+        lmax = (np.diff(np.sign(np.diff(Ydata))) < 0).nonzero()[0] + 1 
+        
+        if split:
+            # s_mid is zero if s centered around x-axis or more generally mean of signal
+            s_mid = np.mean( Ydata )
+            
+            # pre-sorting of locals min based on relative position with respect to s_mid 
+            lmin = lmin[ Ydata[lmin]<s_mid]
+            
+            # pre-sorting of local max based on relative position with respect to s_mid 
+            lmax = lmax[ Ydata[lmax]>s_mid]
+    
+        # global min of dmin-chunks of locals min 
+        lmin = lmin[[i+np.argmin(Ydata[lmin[i:i+dmin]]) for i in range(0,len(lmin),dmin)]]
+        
+        # global max of dmax-chunks of locals max 
+        lmax = lmax[[i+np.argmax(Ydata[lmax[i:i+dmax]]) for i in range(0,len(lmax),dmax)]]
 
-    # return List
-    #return_dict = [] 
-    #return_dict.append( np.array(Xdata[int((N-1)/2):-1*int((N-1)/2)]) )
-    #return_dict.append( np.array(moving_aves) )    
-    return return_dict   
+        return_dict = {}
+        
+        return_dict["YData_min"] = Ydata[lmin] 
+        return_dict["XData_min"] = Xdata[lmin]
+        
+        return_dict["YData_max"] = Ydata[lmax] 
+        return_dict["XData_max"] = Xdata[lmax]
+
+        return return_dict
+  
+    
+    # ===============================================================
+	# Select Filter
+
+    if FilterType == "MovingAvg":
+        return MovingAverage(Xdata, Ydata, **kwargs)
+        
+    if FilterType == "Envelope":
+        return Envelope(Xdata, Ydata, **kwargs)
+          
+
 
 #############################################################################
 ##          Limit Dataset using Center
