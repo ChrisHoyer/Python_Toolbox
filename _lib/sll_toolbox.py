@@ -519,7 +519,8 @@ def Perform_Timeseries_Simulation(t_index, dt, results, Osc_Param, Network_Param
 def Calc_2Cplg_linear(time_start=0, time_end=10e-9, time_points=1e3,
                       VCO_freq0 = 2*np.pi*24.25e9,
                       Div_N=16*32, K_VCO=2*np.pi*757.47e6,
-                      K_PD = 1.6, K_LF = 1, fb_phase = 0,  
+                      K_PD = 1.6, coupling_function = "triangle", K_LF = 1,
+                      fb_phase = 0,  
                       s = sympy.Symbol('s', complex=True),
                       Nqy_freq = np.linspace(1e3, 100e6, int(1e3)),
                       Nqy_skip = 10, Export_OLTF = False):
@@ -571,9 +572,6 @@ def Calc_2Cplg_linear(time_start=0, time_end=10e-9, time_points=1e3,
 
     # Time Delay
     Time_Delay = np.linspace(time_start,time_end,int(time_points))
-    
-    # PD Phase-Error Transfer Function
-    coupling_function = "triangle"
     
       
     #############################################################################
