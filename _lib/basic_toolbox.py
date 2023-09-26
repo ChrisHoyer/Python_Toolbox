@@ -1413,7 +1413,7 @@ def Histogram_Plot(ax, Plot_list, X_label, Y_label, FreedmanDiacoins=True, **kwa
         if len(X_label) == 3:
             x_plot = [x_data*X_label[2] for x_data in x_plot]
             
-        ax.hist(y_plot, label=plot[2], **userargs)
+        ax.hist(x_plot, label=plot[2], **userargs)
         
         return ax, x_plot
 
